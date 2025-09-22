@@ -78,7 +78,7 @@ export const authOptions = {
     },
   },
   session: {
-    strategy: "jwt",
+    strategy: "jwt" as const,
   },
   // Ensure a stable secret is provided to NextAuth (required in production)
   secret: process.env.NEXTAUTH_SECRET,
