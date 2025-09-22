@@ -5,6 +5,7 @@ import { SessionProvider } from "@/components/providers/SessionProvider";
 import { ClientThemeProvider } from "@/components/ClientThemeProvider";
 import { AuthErrorBoundary } from "@/components/AuthErrorBoundary";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,7 @@ export default function RootLayout({
           </SessionProvider>
         </AuthErrorBoundary>
         <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   );
