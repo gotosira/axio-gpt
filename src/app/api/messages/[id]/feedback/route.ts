@@ -11,7 +11,7 @@ export async function PATCH(
     const { id } = await context.params;
     console.log("Feedback API called with params:", { id });
     
-    const session = await getServerSession(authOptions);
+    const session = (await getServerSession(authOptions as unknown as Record<string, unknown>)) as any;
     console.log("Session:", { userId: session?.user?.id, hasSession: !!session });
     
     if (!session?.user?.id) {
