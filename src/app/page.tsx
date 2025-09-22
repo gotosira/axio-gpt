@@ -1634,12 +1634,14 @@ export default function Home() {
                     }}
                   >
                     {a.avatar ? (
-                      <Image 
+                      <img 
                         src={a.avatar} 
                         alt={a.name} 
-                        width={24}
-                        height={24}
                         className="w-6 h-6 rounded-full object-contain bg-[#f2f4f7]" 
+                        onError={(e) => {
+                          console.log('Sidebar avatar failed to load:', a.name, a.avatar);
+                          e.currentTarget.src = '/avatars/BaoBao.jpeg';
+                        }}
                       />
                     ) : (
                       <span className="w-6 h-6 rounded-full flex items-center justify-center bg-[#f2f4f7]">{a.emoji}</span>
@@ -1697,12 +1699,14 @@ export default function Home() {
                       {assistantById(
                         conversation.assistantId || assistantId
                       )?.avatar ? (
-                        <Image 
+                        <img 
                           src={assistantById(conversation.assistantId || assistantId)?.avatar as string} 
                           alt={assistantById(conversation.assistantId || assistantId)?.name || 'Assistant'} 
-                          width={16}
-                          height={16}
                           className="w-4 h-4 rounded-full mr-2 object-contain" 
+                          onError={(e) => {
+                            console.log('Conversation avatar failed to load:', conversation.title);
+                            e.currentTarget.src = '/avatars/BaoBao.jpeg';
+                          }}
                         />
                       ) : (
                         <div className="w-4 h-4 bg-[#8a95a8] rounded-full mr-2"></div>
@@ -1800,13 +1804,15 @@ export default function Home() {
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden border border-[#a6b0bf] bg-[#f2f4f7]">
                   {session.user?.image ? (
-                    <Image 
+                    <img 
                       src={session.user.image as string}
                       alt={session.user.name || "User"}
-                      width={32}
-                      height={32}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        console.log('User avatar failed to load:', session.user?.image);
+                        e.currentTarget.style.display = 'none';
+                      }}
                     />
                   ) : (
                     <span className="text-[#344054] text-sm font-medium">
@@ -1946,7 +1952,7 @@ export default function Home() {
                       }}
                     >
                       <div className="kbar-icon">
-                        {r.icon ? <Image src={r.icon} alt="" width={20} height={20} className="rounded-full"/> : <Search size={16} />}
+                        {r.icon ? <img src={r.icon} alt="" className="w-5 h-5 rounded-full"/> : <Search size={16} />}
                       </div>
                       <div className="truncate">{r.title}</div>
                       <div className="kbar-kbd">↩</div>
