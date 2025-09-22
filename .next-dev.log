@@ -1,0 +1,308 @@
+   ▲ Next.js 15.5.3
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.51:3000
+   - Environments: .env.local, .env
+
+ ✓ Starting...
+ ✓ Ready in 1559ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1536ms (1696 modules)
+ GET / 200 in 1100ms
+ GET / 200 in 2189ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 687ms (1936 modules)
+ GET /api/auth/session 200 in 1343ms
+ ✓ Compiled /api/chat/suggestions in 485ms (1952 modules)
+ GET /api/chat/suggestions 200 in 602ms
+ GET /api/conversations?assistantId=asst_4nCaYlt7AA5Ro4pseDCTbKHO 200 in 631ms
+ GET /api/auth/session 200 in 57ms
+ GET /api/conversations?assistantId=asst_4nCaYlt7AA5Ro4pseDCTbKHO 200 in 27ms
+ GET /api/chat/suggestions 200 in 28ms
+ POST /api/conversations 200 in 27ms
+ GET /api/conversations?assistantId=asst_CO7qtWO5QTfgV0Gyv77XQY8q 200 in 22ms
+ GET /api/chat/suggestions 200 in 32ms
+ GET /api/conversations?assistantId=asst_CO7qtWO5QTfgV0Gyv77XQY8q 200 in 17ms
+ ○ Compiling /api/chat/save-message ...
+ ✓ Compiled /api/chat/save-message in 932ms (1968 modules)
+ POST /api/chat/save-message 200 in 1026ms
+ GET / 200 in 144ms
+ ✓ Compiled /api/chat in 418ms (2073 modules)
+ GET / 200 in 141ms
+ ✓ Compiled /api/chat/generate-title in 215ms (2061 modules)
+ ✓ Compiled /api/conversations/[id] in 202ms (2063 modules)
+ GET /api/conversations/cmfot6nwl0001ryht3m09a07p 200 in 688ms
+ GET /api/conversations?assistantId=asst_4nCaYlt7AA5Ro4pseDCTbKHO 200 in 15ms
+ POST /api/chat/generate-title 200 in 1791ms
+ GET /api/conversations?assistantId=asst_4nCaYlt7AA5Ro4pseDCTbKHO 200 in 11ms
+ POST /api/chat 200 in 8850ms
+ POST /api/chat/save-message 200 in 21ms
+ GET /api/conversations?assistantId=asst_4nCaYlt7AA5Ro4pseDCTbKHO 200 in 12ms
+ GET /api/auth/session 200 in 89ms
+ GET /api/conversations?assistantId=asst_CO7qtWO5QTfgV0Gyv77XQY8q 200 in 36ms
+ GET /api/chat/suggestions 200 in 38ms
+ GET /api/auth/session 200 in 122ms
+ GET /api/conversations?assistantId=asst_CO7qtWO5QTfgV0Gyv77XQY8q 200 in 23ms
+ GET /api/chat/suggestions 200 in 25ms
+ GET /api/auth/session 200 in 122ms
+ GET /api/chat/suggestions 200 in 37ms
+ GET /api/conversations?assistantId=asst_CO7qtWO5QTfgV0Gyv77XQY8q 200 in 43ms
+ GET /api/auth/session 200 in 98ms
+ GET /api/chat/suggestions 200 in 46ms
+ GET /api/conversations?assistantId=asst_CO7qtWO5QTfgV0Gyv77XQY8q 200 in 54ms
+ GET /api/auth/session 200 in 41ms
+ GET /api/chat/suggestions 200 in 44ms
+ GET /api/conversations?assistantId=asst_CO7qtWO5QTfgV0Gyv77XQY8q 200 in 49ms
+ GET /api/auth/session 200 in 22ms
+ GET /api/chat/suggestions 200 in 15ms
+ GET /api/conversations?assistantId=asst_CO7qtWO5QTfgV0Gyv77XQY8q 200 in 18ms
+ GET /api/auth/session 200 in 77ms
+ GET /api/conversations?assistantId=asst_CO7qtWO5QTfgV0Gyv77XQY8q 200 in 25ms
+ GET /api/chat/suggestions 200 in 27ms
+ ✓ Compiled in 1367ms (1966 modules)
+ GET / 200 in 106ms
+ ✓ Compiled in 560ms (1966 modules)
+ GET / 200 in 73ms
+ ✓ Compiled in 547ms (1966 modules)
+ ⨯ Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+    at async L (.next/server/app/page.js:1:3168) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json',
+  page: '/'
+}
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 551ms (2293 modules)
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+    at async L (.next/server/app/page.js:1:3168) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json',
+  page: '/'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+ GET / 500 in 2397ms
+ GET / 500 in 261ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json',
+  page: '/'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json',
+  page: '/'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+ GET / 500 in 1058ms
+ GET / 500 in 288ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json',
+  page: '/'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json',
+  page: '/'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+ GET / 500 in 822ms
+ GET / 500 in 261ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json',
+  page: '/'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json',
+  page: '/'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+ GET / 500 in 813ms
+ GET / 500 in 258ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json',
+  page: '/'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json',
+  page: '/'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+ GET / 500 in 918ms
+ GET / 500 in 260ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json',
+  page: '/'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json',
+  page: '/'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+ GET / 500 in 824ms
+ GET / 500 in 262ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json',
+  page: '/'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json',
+  page: '/'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/sira/Documents/AXIO-UNIVERSE/axio-gpt/.next/routes-manifest.json'
+}
+ GET / 500 in 834ms
+ GET / 500 in 261ms
+[?25h

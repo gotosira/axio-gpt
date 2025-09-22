@@ -1,0 +1,2111 @@
+"use client";
+import { useMemo, useRef, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { useSession, signIn, signOut } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { Message } from "@/components/chat/Message";
+import { MessageActions } from "@/components/chat/MessageActions";
+import { ContextMenu } from "@/components/chat/ContextMenu";
+import { GoogleDrivePicker, useGoogleDriveAuth } from "@/components/GoogleDrivePicker";
+import { Input } from "@/components/ui/input";
+import { Plus, Search, Mic, Volume2, User, Settings, Menu, ChevronDown, LogOut, Bot } from "lucide-react";
+import { AuthWrapper } from "@/components/auth/AuthWrapper";
+import { useTheme } from "@/components/ClientThemeProvider";
+
+type ChatMessage = { 
+  id: string; 
+  role: "user" | "assistant"; 
+  content: string; 
+  feedback?: "like" | "dislike" | null;
+  parentId?: string;
+};
+type Conversation = { id: string; title: string; messages: ChatMessage[]; createdAt: string; updatedAt: string; assistantId?: string };
+
+interface AttachmentFile {
+  id?: string;
+  name: string;
+  type?: string;
+  size?: number;
+  url?: string;
+  iconUrl?: string;
+  lastEdited?: string;
+  serviceId?: string;
+  isGoogleDrive?: boolean;
+  file?: File;
+}
+
+export default function Home() {
+  const { data: session } = useSession();
+  const { theme, setTheme, actualTheme } = useTheme();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [responseId, setResponseId] = useState<string | undefined>(undefined);
+  const [assistantId, setAssistantId] = useState<string | undefined>(process.env.NEXT_PUBLIC_ASSISTANT_ID as string | undefined);
+  const babaoAvatar = process.env.NEXT_PUBLIC_AVATAR_BABAO ?? '/avatars/babao.svg';
+  const deedeeAvatar = process.env.NEXT_PUBLIC_AVATAR_DEEDEE ?? '/avatars/deedee.svg';
+  const pungpungAvatar = process.env.NEXT_PUBLIC_AVATAR_PUNGPUNG ?? '/avatars/pungpung.svg';
+  const flowflowAvatar = process.env.NEXT_PUBLIC_AVATAR_FLOWFLOW ?? '/avatars/flowflow.svg';
+  const assistantCatalog = [
+    { id: 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0', code: 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0', name: 'Babao', emoji: '🍼', avatar: babaoAvatar },
+    { id: 'asst_CO7qtWO5QTfgV0Gyv77XQY8q', code: 'asst_CO7qtWO5QTfgV0Gyv77XQY8q', name: 'DeeDee', emoji: '🦊', avatar: deedeeAvatar },
+    { id: 'asst_Pi6FrBRHRpvhwSOIryJvDo3T', code: 'asst_Pi6FrBRHRpvhwSOIryJvDo3T', name: 'PungPung', emoji: '🦉', avatar: pungpungAvatar },
+    { id: 'asst_4nCaYlt7AA5Ro4pseDCTbKHO', code: 'asst_4nCaYlt7AA5Ro4pseDCTbKHO', name: 'FlowFlow', emoji: '🐙', avatar: flowflowAvatar },
+  ];
+  const assistantById = (id?: string) => {
+    const result = assistantCatalog.find(a => a.code === id);
+    console.log("assistantById lookup:", { id, result: result?.name, avatar: result?.avatar });
+    return result;
+  };
+  const [assistantIdInput, setAssistantIdInput] = useState<string>(assistantId ?? "");
+  const [useAssistant, setUseAssistant] = useState<boolean>(!!assistantId);
+  const [model, setModel] = useState<string>("gpt-5");
+  const [instructions] = useState<string>("");
+  const [currentConvId, setCurrentConvId] = useState<string | undefined>(undefined);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [suggestions, setSuggestions] = useState<{ title: string; description: string; action: string }[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const [showScrollToBottom, setShowScrollToBottom] = useState<boolean>(false);
+  const [showAssistantPicker, setShowAssistantPicker] = useState<boolean>(false);
+  const [recordingFormat, setRecordingFormat] = useState<string>('');
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; messageId: string } | null>(null);
+  const [messageFeedbacks, setMessageFeedbacks] = useState<Record<string, "like" | "dislike" | null>>({});
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [showGoogleDrivePicker, setShowGoogleDrivePicker] = useState(false);
+  const [currentConversationTitle, setCurrentConversationTitle] = useState<string>('New Chat');
+  const [showConversationMenu, setShowConversationMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [assistantOptionsMenu, setAssistantOptionsMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [webSearchEnabled, setWebSearchEnabled] = useState<boolean>(false);
+  const [renamingConvId, setRenamingConvId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState<string>("");
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const { authenticate } = useGoogleDriveAuth();
+  const title = useMemo(() => process.env.NEXT_PUBLIC_APP_NAME ?? "AXIO-GPT", []);
+
+  // Load conversations and suggestions when user is authenticated
+  useEffect(() => {
+    console.log("Page - Session:", session);
+    console.log("Page - Session user:", session?.user);
+    console.log("Page - Session user id:", session?.user && 'id' in session.user ? session.user.id : 'no id');
+    
+    if (session?.user && 'id' in session.user) {
+      console.log("Page - Loading conversations and suggestions");
+      loadConversations(assistantId);
+      loadSuggestions();
+    } else {
+      console.log("Page - No valid session, not loading conversations");
+    }
+  }, [session?.user, assistantId]);
+
+  // Close plus menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showPlusMenu && !(event.target as Element).closest('.plus-menu-container')) {
+        setShowPlusMenu(false);
+      }
+      if (showConversationMenu && !(event.target as Element).closest('.conversation-menu-container')) {
+        setShowConversationMenu(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showPlusMenu, showConversationMenu]);
+
+  // Load assistantId from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("assistantId");
+      if (saved) {
+        setAssistantId(saved);
+        setAssistantIdInput(saved);
+        setUseAssistant(true);
+      }
+    } catch {}
+  }, []);
+
+  // Persist assistantId to localStorage
+  useEffect(() => {
+    try {
+      if (assistantId) localStorage.setItem("assistantId", assistantId);
+      else localStorage.removeItem("assistantId");
+    } catch {}
+  }, [assistantId]);
+
+  // Toggle scroll-to-bottom using IntersectionObserver on the bottom anchor
+  useEffect(() => {
+    const rootEl = chatScrollRef.current;
+    const targetEl = bottomRef.current;
+    if (!rootEl || !targetEl) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setShowScrollToBottom(!entry.isIntersecting);
+      },
+      { root: rootEl, threshold: 1.0, rootMargin: "0px 0px -120px 0px" }
+    );
+    io.observe(targetEl);
+    return () => io.disconnect();
+  }, [messages.length, chatScrollRef, bottomRef]);
+
+  // Fallback: also hide button when user reaches bottom via quick scroll (additional guard)
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const check = () => {
+      const tolerance = 8;
+      const nearBottom = el.scrollTop >= el.scrollHeight - el.clientHeight - tolerance;
+      setShowScrollToBottom((prev) => (nearBottom ? false : prev || true));
+    };
+    check();
+    el.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check);
+    return () => {
+      el.removeEventListener('scroll', check);
+      window.removeEventListener('resize', check);
+    };
+  }, [chatScrollRef]);
+
+  const loadConversations = async (specificAssistantId?: string) => {
+    try {
+      const url = new URL("/api/conversations", window.location.origin);
+      const targetAssistantId = specificAssistantId || assistantId;
+      console.log("Loading conversations for assistantId:", targetAssistantId);
+      if (targetAssistantId) url.searchParams.set('assistantId', targetAssistantId);
+      console.log("API URL:", url.toString());
+      const response = await fetch(url.toString());
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Loaded conversations:", data.length, "conversations");
+        console.log("Conversation assistantIds:", data.map(c => ({ title: c.title, assistantId: c.assistantId })));
+        setConversations(data);
+        return data as Conversation[];
+      } else {
+        console.error("Failed to load conversations:", response.status, response.statusText);
+        return [] as Conversation[];
+      }
+    } catch (error) {
+      console.error("Error loading conversations:", error);
+      return [] as Conversation[];
+    }
+  };
+
+  const loadSuggestions = async () => {
+    try {
+      const response = await fetch("/api/chat/suggestions");
+      if (response.ok) {
+        const data = await response.json();
+        setSuggestions(data.suggestions || []);
+      }
+    } catch (error) {
+      console.error("Error loading suggestions:", error);
+    }
+  };
+
+  const loadConversation = async (conversationId: string) => {
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}`);
+      if (response.ok) {
+        const conversation = await response.json();
+        // Ensure messages are properly formatted and sorted
+        const formattedMessages = conversation.messages
+          .sort((a: { createdAt: string }, b: { createdAt: string }) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          .map((msg: { id: string; role: string; content: string; feedback?: string; parentId?: string }): ChatMessage => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            feedback: msg.feedback,
+            parentId: msg.parentId,
+          }));
+        setMessages(formattedMessages);
+        
+        // Update current conversation title
+        setCurrentConversationTitle(conversation.title);
+        
+        // Load feedback states for all messages
+        const feedbackStates: Record<string, "like" | "dislike" | null> = {};
+        formattedMessages.forEach((msg: ChatMessage) => {
+          if (msg.feedback) {
+            feedbackStates[msg.id] = msg.feedback;
+          }
+        });
+        setMessageFeedbacks(feedbackStates);
+        
+        setCurrentConvId(conversationId);
+        setResponseId(undefined);
+        // Refresh conversations list to update selection
+        loadConversations(assistantId);
+      }
+    } catch (error) {
+      console.error("Error loading conversation:", error);
+    }
+  };
+
+  const generateConversationTitle = async (conversationId: string) => {
+    try {
+      const response = await fetch("/api/chat/generate-title", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId }),
+      });
+      
+      if (response.ok) {
+        const { title } = await response.json();
+        // Refresh conversations to show the new title
+        loadConversations(assistantId);
+      }
+    } catch (error) {
+      console.error("Error generating title:", error);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Check for supported MIME types
+      let mimeType = 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+      } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+        mimeType = 'audio/ogg;codecs=opus';
+      }
+      
+      console.log('Using audio format:', mimeType);
+      
+      const recorder = new MediaRecorder(stream, { mimeType });
+      const audioChunks: Blob[] = [];
+
+      recorder.ondataavailable = (event) => {
+        audioChunks.push(event.data);
+      };
+
+      // Create a file with the appropriate extension based on MIME type
+      const extension = mimeType.includes('webm') ? 'webm' : 
+                       mimeType.includes('mp4') ? 'mp4' : 
+                       mimeType.includes('ogg') ? 'ogg' : 'wav';
+
+      recorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: mimeType });
+        const audioFile = new File([audioBlob], `recording.${extension}`, { type: mimeType });
+        setAttachments(prev => [...prev, audioFile]);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+      setRecordingFormat(extension);
+    } catch (error) {
+      console.error("Error starting recording:", error);
+      alert("Microphone access denied or not available. Please check your browser permissions.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+      setMediaRecorder(null);
+    }
+  };
+
+  const handleAttachment = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const attachmentFiles: AttachmentFile[] = Array.from(files).map(file => ({
+        id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        file: file
+      }));
+      setAttachments(prev => [...prev, ...attachmentFiles]);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSuggestionClick = (suggestion: { action: string }) => {
+    setInput(suggestion.action);
+  };
+
+  const handleGoogleDriveSelect = async () => {
+    try {
+      const accessToken = await authenticate();
+      if (accessToken) {
+        setShowGoogleDrivePicker(true);
+        setShowPlusMenu(false);
+      } else {
+        alert('ไม่สามารถเข้าถึง Google Drive ได้ กรุณาลองใหม่');
+      }
+    } catch (error) {
+      console.error('Error authenticating with Google Drive:', error);
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ Google Drive');
+    }
+  };
+
+  const handleGoogleDriveFiles = async (files: { name: string; id: string; mimeType: string; webViewLink: string }[]) => {
+    console.log('Google Drive files selected:', files);
+    
+    try {
+      // Convert Google Drive files to attachment format
+      const driveFiles = files.map(file => ({
+        id: file.id,
+        name: file.name,
+        type: file.mimeType,
+        size: file.sizeBytes || 0,
+        url: file.downloadUrl || file.url,
+        iconUrl: file.iconUrl,
+        lastEdited: file.lastEditedUtc,
+        serviceId: file.serviceId,
+        isGoogleDrive: true,
+        // For manual uploads, include the actual File object
+        file: file.file || null
+      }));
+
+      // Add to attachments
+      setAttachments(prev => [...prev, ...driveFiles]);
+      setShowGoogleDrivePicker(false);
+      
+      console.log('Files added to attachments:', driveFiles);
+    } catch (error) {
+      console.error('Error processing Google Drive files:', error);
+      alert('เกิดข้อผิดพลาดในการประมวลผลไฟล์จาก Google Drive');
+    }
+  };
+
+  // Context menu handlers
+  const handleRightClick = (event: React.MouseEvent, messageId: string) => {
+    event.preventDefault();
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    const scrollX = window.scrollX || document.documentElement.scrollLeft;
+    const x = event.clientX + scrollX;
+    const y = event.clientY + scrollY;
+    setContextMenu({ x, y, messageId });
+  };
+
+  const handleContextMenuClose = () => {
+    setContextMenu(null);
+  };
+
+  // Assistant options (three-dots) menu
+  const handleAssistantOptions = (event: React.MouseEvent, messageId: string) => {
+    event.preventDefault();
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    const scrollX = window.scrollX || document.documentElement.scrollLeft;
+    const x = event.clientX + scrollX;
+    const y = event.clientY + scrollY;
+    setAssistantOptionsMenu({ id: messageId, x, y });
+  };
+
+  const closeAssistantOptions = () => setAssistantOptionsMenu(null);
+
+  const prefillFromMessage = (messageId: string, prefix: string) => {
+    const m = messages.find(mm => mm.id === messageId);
+    const snippet = m ? (m.content.length > 280 ? m.content.slice(0, 280) + '…' : m.content) : '';
+    setInput(`${prefix}\n\n"""${snippet}"""`);
+  };
+
+  const handleOptionsTryAgain = (messageId: string) => {
+    handleRegenerate(messageId);
+    closeAssistantOptions();
+  };
+
+  const handleOptionsAddDetails = (messageId: string) => {
+    prefillFromMessage(messageId, 'Add more details to this:');
+    closeAssistantOptions();
+  };
+
+  const handleOptionsMoreConcise = (messageId: string) => {
+    prefillFromMessage(messageId, 'Make this more concise:');
+    closeAssistantOptions();
+  };
+
+  const handleOptionsSearchWeb = (messageId: string) => {
+    setWebSearchEnabled(true);
+    prefillFromMessage(messageId, 'Search the web about:');
+    closeAssistantOptions();
+  };
+
+  const handleOptionsSwitchModel = (newModel: string) => {
+    setModel(newModel);
+    try { localStorage.setItem('chat-model', newModel); } catch {}
+    closeAssistantOptions();
+  };
+
+  // Feedback handlers
+  const handleFeedback = async (messageId: string, feedback: "like" | "dislike" | null) => {
+    try {
+      console.log("Attempting to update feedback:", { messageId, feedback });
+      
+      // Check if messageId is valid
+      if (!messageId || messageId === 'undefined' || messageId.startsWith('message-') || messageId.length < 10) {
+        console.error("Invalid messageId:", messageId);
+        return;
+      }
+      
+      // Check if message exists in current messages
+      const messageExists = messages.some(m => m.id === messageId);
+      if (!messageExists) {
+        console.error("Message not found in current messages:", messageId);
+        console.log("Available message IDs:", messages.map(m => m.id));
+        return;
+      }
+      
+      // Check if message is from database (has been saved)
+      const message = messages.find(m => m.id === messageId);
+      if (!message || message.id.startsWith('temp-') || message.id.length < 20) {
+        console.error("Message not yet saved to database:", messageId);
+        return;
+      }
+      
+      // Verify message exists in database by checking if it has a valid conversationId
+      if (!currentConvId) {
+        console.error("No current conversation ID, cannot verify message in database");
+        return;
+      }
+      
+      // Double-check: verify the message exists in the database
+      try {
+        const verifyResponse = await fetch(`/api/conversations/${currentConvId}`);
+        if (verifyResponse.ok) {
+          const conversation = await verifyResponse.json();
+          const messageExistsInDb = conversation.messages.some((m: { id: string }) => m.id === messageId);
+          if (!messageExistsInDb) {
+            console.error("Message not found in database:", messageId);
+            console.log("Available messages in DB:", conversation.messages.map((m: { id: string }) => m.id));
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Error verifying message in database:", error);
+        return;
+      }
+      
+      // Check if messageId looks like a database ID (not a temporary UUID)
+      if (messageId.length < 20) {
+        console.error("MessageId too short, might be temporary:", messageId);
+        console.log("Waiting for message to be saved to database...");
+        return;
+      }
+      
+      // Check if this is a valid database ID format (UUID or CUID)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const cuidRegex = /^c[a-z0-9]{24}$/i; // Prisma CUID format
+      
+      if (!uuidRegex.test(messageId) && !cuidRegex.test(messageId)) {
+        console.error("MessageId doesn't look like a valid database ID (UUID or CUID):", messageId);
+        return;
+      }
+      
+      // Update UI immediately for better UX
+      setMessageFeedbacks(prev => ({
+        ...prev,
+        [messageId]: feedback
+      }));
+
+      const response = await fetch(`/api/messages/${messageId}/feedback`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedback }),
+      });
+      
+      console.log("Feedback API response:", response.status, response.statusText);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log("Feedback updated successfully:", result);
+        
+        // Update the message in the messages array as well
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, feedback }
+            : msg
+        ));
+      } else {
+        // Revert the UI change if API call failed
+        setMessageFeedbacks(prev => ({
+          ...prev,
+          [messageId]: prev[messageId] // Revert to previous state
+        }));
+        
+        const errorText = await response.text();
+        console.error("Failed to update feedback:", response.status, response.statusText, errorText);
+        
+        // Show user-friendly error message
+        alert(`ไม่สามารถอัปเดต feedback ได้: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error("Error updating feedback:", error);
+      // Revert the UI change if API call failed
+      setMessageFeedbacks(prev => ({
+        ...prev,
+        [messageId]: prev[messageId] // Revert to previous state
+      }));
+    }
+  };
+
+  // Reply handler
+  const handleReply = (messageId: string) => {
+    const message = messages.find(m => m.id === messageId);
+    if (message) {
+      setReplyingTo(messageId);
+      setInput(""); // Clear input first
+    }
+    setContextMenu(null);
+  };
+
+  // Regenerate handler
+  const handleRegenerate = async (messageId: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/messages/${messageId}/regenerate`, {
+        method: "POST",
+      });
+
+      if (response.ok && response.body) {
+        // Stream the new response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let newContent = "";
+
+        // Update the message in real-time
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, content: "" } // Clear content first
+            : msg
+        ));
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            newContent += chunk;
+            
+            // Update the message content in real-time
+            setMessages(prev => prev.map(msg => 
+              msg.id === messageId 
+                ? { ...msg, content: newContent }
+                : msg
+            ));
+          }
+        } finally {
+          reader.releaseLock();
+        }
+
+        // Save the final message to database
+        if (currentConvId) {
+          await fetch("/api/chat/save-message", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              role: "assistant",
+              content: newContent,
+              conversationId: currentConvId,
+              shouldRename: false,
+            }),
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error regenerating message:", error);
+    } finally {
+      setLoading(false);
+    }
+    setContextMenu(null);
+  };
+
+  // Delete handler
+  const handleDeleteMessage = async (messageId: string) => {
+    if (confirm("คุณแน่ใจหรือไม่ที่จะลบข้อความนี้?")) {
+      try {
+        const response = await fetch(`/api/messages/${messageId}/delete`, {
+          method: "DELETE",
+        });
+
+        if (response.ok) {
+          // Remove message from local state
+          setMessages(prev => prev.filter(m => m.id !== messageId));
+          // Reload conversation to sync with database
+          if (currentConvId) {
+            loadConversation(currentConvId);
+          }
+        }
+      } catch (error) {
+        console.error("Error deleting message:", error);
+      }
+    }
+    setContextMenu(null);
+  };
+
+  // Copy handler
+  const handleCopy = async (messageId: string) => {
+    const message = messages.find(m => m.id === messageId);
+    if (message) {
+      try {
+        await navigator.clipboard.writeText(message.content);
+        // Show a brief success message
+        console.log("ข้อความถูกคัดลอกแล้ว");
+      } catch (error) {
+        console.error("Error copying text:", error);
+      }
+    }
+    setContextMenu(null);
+  };
+
+  const newConversation = async () => {
+    setMessages([]);
+    setCurrentConvId(undefined);
+    setResponseId(undefined);
+    
+    const newTitle = `New Chat ${new Date().toLocaleTimeString()}`;
+    setCurrentConversationTitle(newTitle);
+    
+    // Create a new conversation in the database immediately
+    try {
+      let chosenAssistant = assistantId;
+      if (!chosenAssistant) {
+        const name = prompt('Choose assistant: Babao, DeeDee, PungPung, FlowFlow', 'Babao');
+        const map: Record<string, string> = {
+          Babao: 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0',
+          DeeDee: 'asst_CO7qtWO5QTfgV0Gyv77XQY8q',
+          PungPung: 'asst_Pi6FrBRHRpvhwSOIryJvDo3T',
+          FlowFlow: 'asst_4nCaYlt7AA5Ro4pseDCTbKHO',
+        };
+        chosenAssistant = map[name || 'Babao'] || map.Babao;
+        setAssistantId(chosenAssistant);
+      }
+
+      const response = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle, assistantId: chosenAssistant }),
+      });
+      
+      if (response.ok) {
+        const newConv = await response.json();
+        setCurrentConvId(newConv.id);
+        // Refresh conversations list to show the new conversation
+        loadConversations(chosenAssistant);
+      }
+    } catch (error) {
+      console.error("Error creating new conversation:", error);
+    }
+  };
+
+  const deleteConversation = async (conversationId: string) => {
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        setConversations(prev => prev.filter(c => c.id !== conversationId));
+        if (currentConvId === conversationId) {
+          newConversation();
+        }
+      }
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+    }
+  };
+
+  async function handleSend(e?: React.FormEvent, overrideText?: string, overrideConversationId?: string) {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    const baseText = (overrideText ?? input).trim();
+    if (!baseText || loading) return;
+    
+    // Auto web-search heuristic for time-sensitive/unknown queries
+    let webSummary = '';
+    try {
+      const trigger = /(ราคาทอง|ทองคำ|ราคาทองคำ|weather|อากาศ|พยากรณ์|today|ล่าสุด|วันนี้|ราคา|update|breaking|news)/i.test(baseText);
+      if (trigger) {
+        const resp = await fetch(`/api/search/web?q=${encodeURIComponent(baseText.slice(0, 140))}`);
+        if (resp.ok) {
+          const s = await resp.json();
+          if (s.abstract || s.heading || s.related?.length) {
+            webSummary = `\n\n[Web summary]\nTitle: ${s.heading || ''}\nSummary: ${s.abstract || ''}\nRelated: ${(s.related||[]).join(' | ')}\nSource: ${s.sourceUrl || ''}`;
+          }
+        }
+      }
+    } catch {}
+
+    // Process attachments first
+    let attachmentInfo = "";
+    if (attachments.length > 0) {
+      try {
+        const uploadPromises = attachments.map(async (file) => {
+          // Check if it's a Google Drive file or manual upload
+          if (file.isGoogleDrive && !file.file) {
+            // Google Drive file - no need to upload, just add info
+            return `📎 ไฟล์จาก Google Drive: ${file.name} (${((file.size || 0) / 1024).toFixed(1)} KB) - ${file.url}`;
+          } else if (file.file) {
+            // Manual upload file - upload to server
+            const formData = new FormData();
+            formData.append("file", file.file);
+            
+            const response = await fetch("/api/upload", {
+              method: "POST",
+              body: formData,
+            });
+            
+            if (response.ok) {
+              const result = await response.json();
+              return `📎 ไฟล์แนบ: ${result.file.name} (${(result.file.size / 1024).toFixed(1)} KB)`;
+            }
+            return `📎 ไฟล์แนบ: ${file.name} (ไม่สามารถอัปโหลดได้)`;
+          } else {
+            // Fallback for other file types
+            return `📎 ไฟล์แนบ: ${file.name} (${((file.size || 0) / 1024).toFixed(1)} KB)`;
+          }
+        });
+        
+        const attachmentTexts = await Promise.all(uploadPromises);
+        attachmentInfo = "\n\n" + attachmentTexts.join("\n");
+      } catch (error) {
+        console.error("Error processing attachments:", error);
+        attachmentInfo = "\n\n📎 ไฟล์แนบ: เกิดข้อผิดพลาดในการประมวลผล";
+      }
+    }
+    
+    // Add reply context if replying to a message
+    let replyContext = "";
+    if (replyingTo) {
+      const replyMessage = messages.find(m => m.id === replyingTo);
+      if (replyMessage) {
+        replyContext = `\n\nตอบกลับ: ${replyMessage.content}`;
+        setReplyingTo(null); // Clear reply after sending
+      }
+    }
+
+    const guidance = webSummary
+      ? `\n\n[Guidance]\nA web summary was fetched. Use only this summary to answer the user's question. Do not say you cannot access the internet. Respond concisely and include the Source URL if helpful.`
+      : '';
+    const fullContent = (webSummary ? `${baseText}${guidance}\n${webSummary}` : baseText) + attachmentInfo + replyContext;
+    const userMessage: ChatMessage = { 
+      id: crypto.randomUUID(), 
+      role: "user", 
+      content: fullContent,
+      parentId: replyingTo || undefined
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    if (!overrideText) setInput("");
+    setAttachments([]); // Clear attachments after sending
+    setLoading(true);
+
+    // Ensure a conversation exists before saving/sending
+    let targetConversationId = overrideConversationId || currentConvId;
+    if (!targetConversationId) {
+      try {
+        const provisionalTitle = input.slice(0, 60) || 'New Chat';
+        const createResp = await fetch("/api/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: provisionalTitle, assistantId }),
+        });
+        if (createResp.ok) {
+          const created = await createResp.json();
+          targetConversationId = created.id;
+          setCurrentConvId(created.id);
+          // Refresh sidebar for the selected assistant
+          await loadConversations(assistantId);
+        }
+      } catch (err) {
+        console.error('Error creating conversation before send:', err);
+      }
+    }
+
+    // Save user message immediately to database
+    if (targetConversationId) {
+      try {
+        // Check if this is the first user message in the conversation
+        const isFirstUserMessage = messages.filter(m => m.role === "user").length === 0;
+        
+        const userSaveResponse = await fetch("/api/chat/save-message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            role: "user",
+            content: fullContent,
+            conversationId: targetConversationId,
+            shouldRename: isFirstUserMessage, // Rename conversation if this is the first user message
+          }),
+        });
+        
+        if (userSaveResponse.ok) {
+          const savedUserMessage = await userSaveResponse.json();
+          // Update the user message ID in the UI with the actual database ID
+          setMessages(prev => prev.map(msg => 
+            msg.id === userMessage.id 
+              ? { ...msg, id: savedUserMessage.id }
+              : msg
+          ));
+          
+          // Also update the messageFeedbacks state with the new ID
+          if (savedUserMessage.id !== userMessage.id) {
+            setMessageFeedbacks(prev => {
+              const newState = { ...prev };
+              if (prev[userMessage.id] !== undefined) {
+                newState[savedUserMessage.id] = prev[userMessage.id];
+                delete newState[userMessage.id];
+              }
+              return newState;
+            });
+          }
+        }
+        
+        // If this is the first user message, generate a better title
+        if (isFirstUserMessage) {
+          setTimeout(() => {
+            if (targetConversationId) generateConversationTitle(targetConversationId);
+          }, 1000); // Wait a bit for the message to be saved
+        }
+        
+        // Reload the current conversation to get the correct message IDs
+        setTimeout(() => {
+          if (targetConversationId) loadConversation(targetConversationId);
+        }, 2000); // Wait even longer for database to be updated
+      } catch (error) {
+        console.error("Error saving user message:", error);
+      }
+    }
+
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        messages: [...messages, userMessage].map(({ role, content }) => ({ role, content })), 
+        previousResponseId: responseId, 
+        model, 
+        instructions, 
+        assistantId: useAssistant ? assistantId : undefined,
+        conversationId: targetConversationId
+      }),
+    });
+
+    if (!res.ok || !res.body) {
+      setLoading(false);
+      return;
+    }
+
+    const newResponseId = res.headers.get("x-response-id");
+    const newConversationId = res.headers.get("x-conversation-id");
+    const stableConvId = newConversationId || targetConversationId || currentConvId;
+    if (newResponseId) setResponseId(newResponseId);
+    if (newConversationId && !currentConvId) {
+      setCurrentConvId(newConversationId);
+      loadConversations(assistantId); // Refresh conversations list
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let assistantText = "";
+    const assistantMsgId = crypto.randomUUID();
+    setMessages((prev) => [...prev, { id: assistantMsgId, role: "assistant", content: "" }]);
+    // Buffer updates to reduce re-render overhead for faster perceived streaming
+    let frameScheduled = false;
+    let pendingFlush = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        // First token arrived: hide the separate thinking bubble
+        if (loading) setLoading(false);
+        pendingFlush += chunk;
+        if (!frameScheduled) {
+          frameScheduled = true;
+          requestAnimationFrame(() => {
+            assistantText += pendingFlush;
+            pendingFlush = "";
+            frameScheduled = false;
+            setMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, content: assistantText } : m)));
+            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+          });
+        }
+      }
+      // Ensure final flush
+      if (pendingFlush) {
+        assistantText += pendingFlush;
+        setMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, content: assistantText } : m)));
+      }
+    } finally {
+      setLoading(false);
+      // Save assistant message to database (use stable conversation id to avoid state races)
+      if (assistantText && stableConvId) {
+        try {
+          const saveResponse = await fetch("/api/chat/save-message", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              role: "assistant",
+              content: assistantText,
+              conversationId: stableConvId,
+              shouldRename: false, // Don't rename here, already handled in user message saving
+            }),
+          });
+          
+          if (saveResponse.ok) {
+            const savedMessage = await saveResponse.json();
+            // Update the message ID in the UI with the actual database ID
+            setMessages(prev => prev.map(msg => 
+              msg.id === assistantMsgId 
+                ? { ...msg, id: savedMessage.id }
+                : msg
+            ));
+            
+            // Also update the messageFeedbacks state with the new ID
+            if (savedMessage.id !== assistantMsgId) {
+              setMessageFeedbacks(prev => {
+                const newState = { ...prev };
+                if (prev[assistantMsgId] !== undefined) {
+                  newState[savedMessage.id] = prev[assistantMsgId];
+                  delete newState[assistantMsgId];
+                }
+                return newState;
+              });
+            }
+          }
+          
+          // Refresh conversations to show updated title
+          loadConversations(assistantId);
+          
+          // Reload the current conversation to get the correct message IDs
+          if (currentConvId) {
+            setTimeout(() => {
+              loadConversation(currentConvId);
+            }, 2000); // Wait even longer for database to be updated
+          }
+        } catch (error) {
+          console.error("Error saving assistant message:", error);
+        }
+      }
+    }
+  }
+
+  return (
+    <AuthWrapper>
+      <div className="min-h-screen flex app-container">
+      {/* Sidebar */}
+      <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 overflow-hidden border-r sidebar`}>
+        <div className="h-full flex flex-col">
+          {/* Header */}
+          <div className="p-3 border-b border-light sidebar-header">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded border border-light flex items-center justify-center bg-primary">
+                  <span className="font-bold text-sm text-white">A</span>
+                </div>
+                <span className="font-semibold text-lg text-primary">GPT-5</span>
+                <ChevronDown size={16} className="text-secondary" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="text-primary hover:bg-hover p-1">
+                  <Settings size={16} />
+                </Button>
+                <Button variant="ghost" size="sm" className="text-primary hover:bg-hover p-1">
+                  <Menu size={16} />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <div className="flex-1 overflow-y-auto scroll-container">
+            <div className="p-3 space-y-1">
+              <Button variant="ghost" className="w-full justify-start text-primary hover:bg-hover h-8 text-sm font-medium sidebar-button">
+                <Plus size={16} className="mr-2" />
+                New chat
+              </Button>
+              <Button variant="ghost" className="w-full justify-start text-primary hover:bg-hover h-8 text-sm font-medium sidebar-button">
+                <Search size={16} className="mr-2" />
+                Search chats
+              </Button>
+            </div>
+
+            {/* Assistants Section */}
+            <div className="px-3 py-2">
+              <div className="text-xs font-semibold uppercase tracking-wide mb-2 text-secondary">Assistants</div>
+              <div className="space-y-1">
+                {assistantCatalog.map(a => (
+                  <button
+                    key={a.id}
+                    className={`w-full flex items-center gap-2 px-2 py-2 rounded text-left assistant-button ${assistantId===a.code? 'selected':''}`}
+                    onClick={() => { 
+                      console.log("Selecting assistant:", a.name, "with code:", a.code);
+                      setAssistantId(a.code); 
+                      setCurrentConvId(undefined); 
+                      setMessages([]); 
+                      loadConversations(a.code); 
+                      setCurrentConversationTitle('New Chat'); 
+                    }}
+                  >
+                    {a.avatar ? (
+                      <img 
+                        src={a.avatar} 
+                        alt={a.name} 
+                        className="w-6 h-6 rounded-full object-contain bg-[#f2f4f7]" 
+                        onLoad={() => console.log("Avatar loaded:", a.name, a.avatar)}
+                        onError={(e) => console.error("Avatar failed to load:", a.name, a.avatar, e)}
+                      />
+                    ) : (
+                      <span className="w-6 h-6 rounded-full flex items-center justify-center bg-[#f2f4f7]">{a.emoji}</span>
+                    )}
+                    <span className="text-sm">{a.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Recent Chats Section */}
+            <div className="p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm font-medium text-primary">Recent</span>
+              </div>
+              <div className="space-y-1">
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start text-primary hover:bg-hover h-8 text-sm font-medium sidebar-button"
+                  onClick={() => setShowAssistantPicker(true)}
+                >
+                  <Plus size={16} className="mr-2" />
+                  New conversation
+                </Button>
+                {conversations.map((conversation) => (
+                  <div
+                    key={conversation.id}
+                    className="flex items-center group conversation-menu-container"
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      const scrollY = window.scrollY || document.documentElement.scrollTop;
+                      const scrollX = window.scrollX || document.documentElement.scrollLeft;
+                      const x = e.clientX + scrollX;
+                      const y = e.clientY + scrollY;
+                      setShowConversationMenu({ id: conversation.id, x, y });
+                      setRenamingConvId(null);
+                    }}
+                  >
+                    <Button 
+                      variant="ghost" 
+                      className={`flex-1 justify-start text-primary hover:bg-hover h-8 text-sm font-medium conversation-item ${
+                        currentConvId === conversation.id ? 'selected' : ''
+                      }`}
+                      onClick={() => loadConversation(conversation.id)}
+                    >
+                      {assistantById(
+                        // For legacy conversations (null assistantId) shown under Babao, show Babao's avatar
+                        conversation.assistantId || (assistantId === 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0' ? 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0' : undefined)
+                      )?.avatar ? (
+                        <img 
+                          src={assistantById(conversation.assistantId || (assistantId === 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0' ? 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0' : undefined))?.avatar as string} 
+                          alt={assistantById(conversation.assistantId || (assistantId === 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0' ? 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0' : undefined))?.name || 'Assistant'} 
+                          className="w-4 h-4 rounded-full mr-2 object-contain" 
+                          onLoad={() => console.log(
+                            "Conversation avatar loaded:",
+                            conversation.title,
+                            assistantById(conversation.assistantId || (assistantId === 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0' ? 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0' : undefined))?.name
+                          )}
+                          onError={(e) => console.error(
+                            "Conversation avatar failed to load:",
+                            conversation.title,
+                            conversation.assistantId,
+                            assistantById(conversation.assistantId || (assistantId === 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0' ? 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0' : undefined))?.avatar,
+                            e
+                          )}
+                        />
+                      ) : (
+                        <div className="w-4 h-4 bg-[#8a95a8] rounded-full mr-2"></div>
+                      )}
+                      <span className="truncate">{conversation.title}</span>
+                    </Button>
+        </div>
+                ))}
+              </div>
+              
+              {/* Conversation More Options Menu */}
+              {showConversationMenu && typeof window !== 'undefined' && createPortal(
+                <div
+                  className="conversation-menu is-portal bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-[9999] min-w-56 conversation-menu-container conversation-menu-positioned"
+                  style={{ 
+                    top: showConversationMenu.y, 
+                    left: showConversationMenu.x,
+                    background: '#ffffff',
+                    border: '1px solid #E4E7EC',
+                    borderRadius: '8px',
+                    boxShadow: '0 8px 24px rgba(16, 24, 40, 0.12)',
+                    zIndex: 9999,
+                    minWidth: '200px',
+                    padding: '4px 0'
+                  }}
+                >
+                  {renamingConvId === showConversationMenu.id ? (
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        try {
+                          await fetch(`/api/conversations/${renamingConvId}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title: renameValue.trim() })
+                          });
+                          await loadConversations(assistantId);
+                          if (currentConvId === renamingConvId) setCurrentConversationTitle(renameValue.trim());
+                        } finally {
+                          setRenamingConvId(null);
+                          setShowConversationMenu(null);
+                        }
+                      }}
+                      className="px-3 py-2"
+                    >
+                      <input
+                        autoFocus
+                        className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        placeholder="Rename conversation"
+                      />
+                    </form>
+                  ) : (
+                    <>
+                      <button
+                        className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 text-gray-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRenamingConvId(showConversationMenu.id);
+                          const conv = conversations.find(c => c.id === showConversationMenu.id);
+                          setRenameValue(conv?.title || "");
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          textAlign: 'left',
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#344054',
+                          fontSize: '14px',
+                          lineHeight: '20px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          transition: 'background-color 0.2s ease'
+                        }}
+                      >
+                        <span>✏️</span>
+                        <span>Rename conversation</span>
+                      </button>
+                      <button
+                        className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 text-gray-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          generateConversationTitle(showConversationMenu.id);
+                          setShowConversationMenu(null);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          textAlign: 'left',
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#344054',
+                          fontSize: '14px',
+                          lineHeight: '20px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          transition: 'background-color 0.2s ease'
+                        }}
+                      >
+                        <span>✨</span>
+                        <span>Generate better title</span>
+                      </button>
+                      <button
+                        className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-red-50 text-red-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteConversation(showConversationMenu.id);
+                          setShowConversationMenu(null);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          textAlign: 'left',
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#D92D20',
+                          fontSize: '14px',
+                          lineHeight: '20px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          transition: 'background-color 0.2s ease'
+                        }}
+                      >
+                        <span>🗑️</span>
+                        <span>Delete conversation</span>
+                      </button>
+                    </>
+                  )}
+                </div>, document.body
+              )}
+
+              {/* User Profile (sticky at bottom of sidebar while scrolling) */}
+              <div className="p-3 border-t border-[#e4e7ec] sticky bottom-0 z-40" style={{ backgroundColor: 'var(--bg-sidebar)' }}>
+                {session ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden border border-[#a6b0bf] bg-[#f2f4f7]">
+                      {session.user?.image ? (
+                        <img 
+                          src={session.user.image as string}
+                          alt={session.user.name || "User"}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-[#344054] text-sm font-medium">
+                          {session.user?.name?.charAt(0) || "U"}
+                        </span>
+                      )}
+        </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate text-[#344054]">{session.user?.name || "User"}</div>
+                      <div className="text-xs text-[#8a95a8] truncate">{session.user?.email}</div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-[#8a95a8] hover:text-[#344054] p-1"
+                      onClick={() => signOut()}
+                      title="Sign out"
+                    >
+                      <LogOut size={16} />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-[#344054] hover:bg-[#e4e7ec] h-8 text-sm font-medium"
+                    onClick={() => signIn("google")}
+                  >
+                    <User size={16} className="mr-2" />
+                    Sign in with Google
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 main-content">
+        {/* Netflix-style Assistant Picker Modal */}
+        {showAssistantPicker && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.8)' }}>
+            <div className="absolute inset-0" onClick={() => setShowAssistantPicker(false)} />
+            <div className="relative z-[101] w-full h-full flex flex-col items-center justify-center p-6">
+              <div className="text-white text-4xl md:text-6xl font-semibold mb-10">Who&apos;s chatting?</div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-6 max-w-6xl w-full">
+                {assistantCatalog.map((a) => (
+                  <button
+                    key={a.id}
+                    className="group relative rounded-lg overflow-hidden ring-2 ring-transparent focus:outline-none focus:ring-white/60"
+                    onClick={async () => {
+                      setAssistantId(a.code);
+                      setShowAssistantPicker(false);
+                      // create conversation then auto send hello
+                      const createdTitle = `New Chat with ${a.name}`;
+                      try {
+                        const resp = await fetch('/api/conversations', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ title: createdTitle, assistantId: a.code }),
+                        });
+                        if (resp.ok) {
+                          const conv = await resp.json();
+                          setCurrentConvId(conv.id);
+                          await loadConversations(a.code);
+                          // auto send hello
+                          await handleSend(undefined, `Hello, ${a.name}..`, conv.id);
+                        }
+                      } catch (e) {
+                        console.error('Error starting conversation:', e);
+                      }
+                    }}
+                  >
+                    <div className="bg-[#141414] rounded-lg p-1 transition-transform group-hover:scale-105">
+                      <div className="aspect-square w-full rounded-lg overflow-hidden bg-[#0b0b0b]">
+                        <img src={a.avatar || '/avatars/babao.svg'} alt={a.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="mt-3 text-center text-white text-lg">{a.name}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <button className="mt-10 px-4 py-2 rounded bg-white/10 text-white hover:bg-white/20" onClick={() => setShowAssistantPicker(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+        {/* Chat Header */}
+        <div className="chat-header" style={{ backgroundColor: 'var(--nav-bg)', color: 'var(--nav-text)' }}>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-[#f5fafe] hover:bg-[#074e9f]/20"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              <Menu size={16} />
+            </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-[#f5fafe] font-semibold text-lg">{currentConversationTitle}</span>
+              <div className="bg-[#07a721] px-2 py-1 rounded-full">
+                <span className="text-[#f9fbf9] text-sm font-medium">Online</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Button variant="ghost" size="sm" className="text-[#f5fafe] hover:bg-[#074e9f]/20"
+                onClick={() => setShowPlusMenu(false)}
+                onMouseDown={(e)=>{
+                  e.preventDefault();
+                  const el = document.getElementById('settings-theme-menu');
+                  if(el){ el.classList.toggle('hidden'); el.classList.add('plus-menu-dropdown'); }
+                }}
+                title="Settings"
+              >
+                <Settings size={16} />
+              </Button>
+              <div id="settings-theme-menu" className="hidden absolute right-0 mt-2 rounded-lg shadow-lg z-50 min-w-56 plus-menu-dropdown">
+                <div className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>Theme</div>
+                {['axons-light','axons-dark','light','dark','system'].map((mode)=> (
+                  <button key={mode}
+                    className={`w-full text-left px-3 py-2 text-sm ${theme === mode ? 'bg-blue-50 text-blue-600' : ''}`}
+                    style={{ color: 'var(--text-primary)' }}
+                    onClick={()=>{setTheme(mode as any);(document.getElementById('settings-theme-menu') as HTMLElement)?.classList.add('hidden');}}
+                  >{mode}</button>
+                ))}
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" className="text-[#f5fafe] hover:bg-[#074e9f]/20">
+              <ChevronDown size={16} />
+            </Button>
+          </div>
+        </div>
+
+        {/* Chat Area */}
+        <div className="flex-1 flex flex-col">
+          {messages.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center">
+              <h1 className="text-2xl font-medium mb-8" style={{ color: 'var(--text-primary)' }}>What can I help with?</h1>
+              
+              {/* Action Cards - Only show if suggestions are available */}
+              {suggestions.length > 0 && (
+                <div className="w-full max-w-2xl mb-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    {suggestions.map((suggestion) => (
+                      <div key={suggestion.id} className="action-card" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}>
+                        <div className="action-card-title" style={{ color: 'var(--text-primary)' }}>{suggestion.title}</div>
+                        <div className="action-card-description" style={{ color: 'var(--text-secondary)' }}>{suggestion.description}</div>
+                        <div className="flex gap-2">
+                          <button 
+                            className="action-card-button"
+                            onClick={() => handleSuggestionClick(suggestion)}
+                          >
+                            Try it
+                          </button>
+                          <button 
+                            className="action-card-icon"
+                            title="More options"
+                            aria-label="More options"
+                          >
+                            <ChevronDown size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="w-full">
+                <div className="chat-input-area w-full" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                  <div className="flex gap-3 items-center w-full">
+                <div className="relative plus-menu-container">
+                  <button 
+                    type="button"
+                    className="plus-menu-button"
+                    onClick={() => setShowPlusMenu(!showPlusMenu)}
+                    title="More options"
+                  >
+                    <Plus size={16} />
+                  </button>
+                      
+                      {/* Plus Menu Dropdown */}
+                      {showPlusMenu && (
+                        <div className="absolute bottom-full left-0 mb-2 w-64 rounded-lg shadow-lg z-50 plus-menu-dropdown">
+                          <div className="p-2">
+                            <button 
+                              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left"
+                              style={{ color: 'var(--text-primary)' }}
+                              onClick={() => {
+                                document.getElementById('attachment-input')?.click();
+                                setShowPlusMenu(false);
+                              }}
+                            >
+                              <span className="text-lg">📎</span>
+                              <span>Add photos & files</span>
+                            </button>
+                            <button 
+                              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left"
+                              style={{ color: 'var(--text-primary)' }}
+                              onClick={handleGoogleDriveSelect}
+                            >
+                              <span className="text-lg">📁</span>
+                              <span>Add from Google Drive</span>
+                            </button>
+                          </div>
+                          <div className="border-t" style={{ borderColor: 'var(--border-color)' }}></div>
+                          <div className="p-2">
+                            <button 
+                              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left"
+                              style={{ color: 'var(--text-primary)' }}
+                              onClick={() => setShowPlusMenu(false)}
+                            >
+                              <span className="text-lg">👆</span>
+                              <span>Agent mode</span>
+                              <span className="ml-auto text-xs bg-gray-600 text-gray-300 px-2 py-1 rounded-full">NEW</span>
+                            </button>
+                            <button 
+                              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left"
+                              style={{ color: 'var(--text-primary)' }}
+                              onClick={() => setShowPlusMenu(false)}
+                            >
+                              <span className="text-lg">🔭</span>
+                              <span>Deep research</span>
+                            </button>
+                            <button 
+                              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left"
+                              style={{ color: 'var(--text-primary)' }}
+                              onClick={() => setShowPlusMenu(false)}
+                            >
+                              <span className="text-lg">🖼️</span>
+                              <span>Create image</span>
+                            </button>
+                            <button 
+                              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left"
+                              style={{ color: 'var(--text-primary)' }}
+                              onClick={() => setShowPlusMenu(false)}
+                            >
+                              <span className="text-lg">🌐</span>
+                              <span>Web search</span>
+                            </button>
+                          </div>
+                          <div className="border-t" style={{ borderColor: 'var(--border-color)' }}></div>
+                          <div className="p-2">
+                            <button 
+                              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left"
+                              style={{ color: 'var(--text-primary)' }}
+                              onClick={() => setShowPlusMenu(false)}
+                            >
+                              <span className="text-lg">•••</span>
+                              <span>More</span>
+                              <span className="ml-auto text-gray-400">{'>'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <input
+                      type="file"
+                      id="attachment-input"
+                      multiple
+                      accept="image/*,video/*,.pdf,.doc,.docx,.txt,.webm,.mp4,.ogg,.wav"
+                      onChange={handleAttachment}
+                      className="hidden"
+                      aria-label="Upload attachments"
+                    />
+                    
+                <div className="flex-1 w-full">
+                  {/* Attachment preview chips */}
+                  {attachments.length > 0 && (
+                    <div className="attachment-preview">
+                      {attachments.map((file, index) => (
+                        <div key={index} className="attachment-chip">
+                          <span>📎</span>
+                          <span className="truncate max-w-32">{file.name}</span>
+                          <button 
+                            type="button"
+                            onClick={() => setAttachments(attachments.filter((_, i) => i !== index))}
+                            title="Remove attachment"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <form onSubmit={handleSend} className="relative w-full flex items-center gap-3">
+                    <div className="flex-1 relative">
+                      <button 
+                        type="button" 
+                        className="chat-input-icon left" 
+                        title="Attach files" 
+                        onClick={() => document.getElementById('attachment-input')?.click()}
+                      >
+                        📎
+                      </button>
+                      <input
+                        type="text"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSend(e);
+                          }
+                        }}
+                        placeholder="Ask anything"
+                        className="chat-input"
+                        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                      />
+                      <button 
+                        type="button" 
+                        className="chat-input-icon right" 
+                        title="Voice input" 
+                        onClick={() => {}}
+                        disabled={loading}
+                      >
+                        🎤
+                      </button>
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={!input.trim() || loading}
+                      className="px-6 py-2 rounded-full text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ 
+                        backgroundColor: 'var(--primary-500)', 
+                        color: 'white',
+                        border: 'none'
+                      }}
+                    >
+                      {loading ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      ) : (
+                        'Send'
+                      )}
+                    </Button>
+                  </form>
+                  {/* Scroll to bottom button */}
+                  {showScrollToBottom && (
+                    <button
+                      type="button"
+                      onClick={() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                      className="hidden md:flex items-center gap-1 text-xs text-[#667085] hover:text-[#344054] absolute right-2 -top-7 bg-white/70 backdrop-blur px-2 py-1 rounded-full border border-[#e4e7ec]"
+                      title="Scroll to bottom"
+                    >
+                      ↓ Bottom
+                    </button>
+                  )}
+                      {/* Attachments */}
+                      {attachments.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {attachments.map((file, index) => (
+                            <div key={index} className="attachment-item">
+                              <span className="flex items-center gap-1">
+                                {file.isGoogleDrive ? (
+                                  <span className="text-blue-500">📁</span>
+                                ) : (
+                                  <span className="text-gray-500">📎</span>
+                                )}
+                                <span className="truncate">{file.name}</span>
+                                {file.isGoogleDrive && (
+                                  <span className="text-xs text-blue-400">(Google Drive)</span>
+                                )}
+                              </span>
+                              <button
+                                onClick={() => removeAttachment(index)}
+                                className="attachment-remove"
+                              >
+                                ×
+                              </button>
+        </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className={`icon-button ${isRecording ? 'bg-red-500 text-white' : ''}`}
+                      onClick={isRecording ? stopRecording : startRecording}
+                      title={isRecording ? `Recording in ${recordingFormat.toUpperCase()} format - Click to stop` : 'Click to start voice recording'}
+                    >
+                      <Mic size={16} />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-[#8a95a8] mt-8 text-center">
+                ChatGPT can make mistakes. OpenAI doesn&apos;t use your workspace data to train its models.
+              </p>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col chat-area">
+              {/* Message Summary Cards */}
+              <div className="w-full max-w-6xl mx-auto px-8 py-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  {/* Message Card 1 */}
+                  <div className="message-summary-card">
+                    <div className="message-card-header">
+                      <h3 className="message-card-title">หัวข้อ</h3>
+                    </div>
+                    <div className="message-card-content">
+                      <p className="message-card-description">รายละเอียด</p>
+                      <div className="message-card-link">
+                        <span className="message-card-icon">📎</span>
+                        <a href="#" className="message-card-link-text">คลิกดูรายละเอียด</a>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Message Card 2 */}
+                  <div className="message-summary-card">
+                    <div className="message-card-header">
+                      <h3 className="message-card-title">หัวข้อ</h3>
+                    </div>
+                    <div className="message-card-content">
+                      <p className="message-card-description">รายละเอียด</p>
+                      <div className="message-card-link">
+                        <span className="message-card-icon">📎</span>
+                        <a href="#" className="message-card-link-text">คลิกดูรายละเอียด</a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Chat Messages Area */}
+              <div className="flex-1 overflow-y-auto scroll-container" ref={chatScrollRef}>
+                <div className="w-full max-w-6xl mx-auto px-8 py-6 space-y-4 chat-messages">
+                  {/* Date/Time Separator */}
+                  <div className="chat-date-time">
+                    <div className="date-badge">
+                      {new Date().toLocaleDateString('en-GB')}, {new Date().toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        hour12: false 
+                      })}
+                    </div>
+                  </div>
+                
+                {messages.map((m, idx) => {
+                  // Split content into main text and attachments
+                  const attachmentMatch = m.content.match(/\n\n📎 ไฟล์แนบ:.*$/);
+                  const mainContent = attachmentMatch ? m.content.replace(attachmentMatch[0], '') : m.content;
+                  const attachmentContent = attachmentMatch ? attachmentMatch[0] : '';
+                  
+                  // Debug logging
+                  console.log("Rendering message:", { id: m.id, role: m.role, hasId: !!m.id });
+                  
+                  return (
+                    <div key={m.id || `message-${idx}`} className="space-y-2">
+                      <Message 
+                        role={m.role} 
+                        content={mainContent}
+                        messageId={m.id}
+                        feedback={messageFeedbacks[m.id] || m.feedback}
+                        onFeedback={m.id ? handleFeedback : undefined}
+                        onRightClick={m.id ? handleRightClick : undefined}
+                        onOptions={m.id ? handleAssistantOptions : undefined}
+                        onReply={m.id ? handleReply : undefined}
+                        onRegenerate={m.id ? handleRegenerate : undefined}
+                        onDelete={m.id ? handleDeleteMessage : undefined}
+                        onCopy={m.id ? handleCopy : undefined}
+                        assistantAvatarUrl={assistantById(currentConvId ? conversations.find(c=>c.id===currentConvId)?.assistantId : assistantId)?.avatar}
+                      />
+                      
+                      {/* Show feedback status */}
+                      {(messageFeedbacks[m.id] || m.feedback) && (
+                        <div className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} mt-1`}>
+                          <div className={`text-xs px-2 py-1 rounded-full ${
+                            (messageFeedbacks[m.id] || m.feedback) === 'like' 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {(messageFeedbacks[m.id] || m.feedback) === 'like' ? '👍 ถูกใจ' : '👎 ไม่ถูกใจ'}
+                          </div>
+                        </div>
+                      )}
+                      {attachmentContent && (
+                        <div className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${
+                            m.role === 'user' 
+                              ? 'bg-[#e6f3ff] text-[#1e40af]' 
+                              : 'bg-[#f8f9fa] text-[#6b7280]'
+                          }`}>
+                            <div className="whitespace-pre-line">{attachmentContent}</div>
+                          </div>
+                        </div>
+                      )}
+                      {m.role === "assistant" && idx === messages.length - 1 && (
+                        <MessageActions text={m.content} onRegenerate={() => setInput(messages[messages.length - 2]?.content ?? "")} />
+                      )}
+                    </div>
+                  );
+                })}
+                {loading && (
+                  <div className="flex items-start gap-2 py-1 pl-0 pr-10">
+                    <div className="avatar">
+                      <div className="w-8 h-8 bg-[#f2f4f7] rounded-full flex items-center justify-center border border-[#a6b0bf]">
+                        <Bot size={16} className="text-[#344054]" />
+                      </div>
+                      <div className="avatar-status"></div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="chat-message-bubble assistant">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-[#8a95a8] rounded-full animate-pulse"></div>
+                          <div className="w-2 h-2 bg-[#8a95a8] rounded-full animate-pulse animation-delay-200"></div>
+                          <div className="w-2 h-2 bg-[#8a95a8] rounded-full animate-pulse animation-delay-400"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={bottomRef} id="chat-bottom-anchor" />
+              </div>
+            </div>
+          )}
+
+          {/* Input Area (when there are messages) */}
+          {showScrollToBottom && (
+            <button
+              type="button"
+              onClick={() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              className="fixed left-1/2 -translate-x-1/2 bottom-24 z-[60] px-4 py-2 rounded-full border border-[#e4e7ec] bg-white/95 backdrop-blur shadow-md text-sm text-[#344054] hover:bg-white"
+              title="Scroll to bottom"
+            >
+              ↓ Scroll to latest
+            </button>
+          )}
+
+          {messages.length > 0 && (
+            <div className="chat-input-container">
+              {/* Main Chatbar */}
+              <div className="chatbar-main">
+                {/* Left Section - Menu & Attach */}
+                <div className="chatbar-left">
+                  <button 
+                    type="button"
+                    className="menu-btn"
+                    onClick={() => setShowPlusMenu(!showPlusMenu)}
+                    title="Menu"
+                  >
+                    <div className="menu-icon">
+                      <div className="menu-line"></div>
+                      <div className="menu-line"></div>
+                      <div className="menu-line"></div>
+                    </div>
+                  </button>
+                  
+                  <button 
+                    type="button"
+                    className="attach-btn"
+                    onClick={() => document.getElementById('attachment-input-messages')?.click()}
+                    title="Attach files"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                      <path d="M8.5 2.5C6.5 2.5 4.5 4.5 4.5 6.5V12.5C4.5 14.5 6.5 16.5 8.5 16.5C10.5 16.5 12.5 14.5 12.5 12.5V6.5C12.5 5.5 11.5 4.5 10.5 4.5C9.5 4.5 8.5 5.5 8.5 6.5V12.5C8.5 13 9 13.5 9.5 13.5C10 13.5 10.5 13 10.5 12.5V6.5H12.5V12.5C12.5 14.5 10.5 16.5 8.5 16.5C6.5 16.5 4.5 14.5 4.5 12.5V6.5C4.5 4.5 6.5 2.5 8.5 2.5Z" fill="#074E9F"/>
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* Center Section - Input Field */}
+                <div className="chatbar-center">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSend(e);
+                      }
+                    }}
+                    placeholder="พิมพ์อะไรก็ได้"
+                    className="chatbar-input"
+                  />
+                  <button 
+                    type="button"
+                    className="mic-btn"
+                    onClick={() => {}}
+                    disabled={loading}
+                    title="Voice input"
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 14C13.66 14 15 12.66 15 11V5C15 3.34 13.66 2 12 2C10.34 2 9 3.34 9 5V11C9 12.66 10.34 14 12 14ZM17.3 11C17.3 15 14.76 18.1 12 18.72V21H15V23H9V21H12V18.72C9.24 18.1 6.7 15 6.7 11H5C5 15.41 8.59 19 13 19H11V21H15V19H13C17.41 19 21 15.41 21 11H17.3Z" fill="#344054"/>
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* Right Section - Send Button */}
+                <div className="chatbar-right">
+                  <button
+                    type="submit"
+                    className="send-btn"
+                    disabled={!input.trim() || loading}
+                    onClick={handleSend}
+                    title="Send message"
+                  >
+                    {loading ? (
+                      <div className="loading-spinner"></div>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" fill="#A6B0BF"/>
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+              
+              {/* Plus Menu Dropdown */}
+              {showPlusMenu && (
+                <div className="plus-menu">
+                  <div className="plus-menu-content">
+                    <button 
+                      className="plus-menu-item"
+                      onClick={() => {
+                        document.getElementById('attachment-input-messages')?.click();
+                        setShowPlusMenu(false);
+                      }}
+                    >
+                      <span className="plus-menu-icon">📎</span>
+                      <span>Add photos & files</span>
+                    </button>
+                    <button 
+                      className="plus-menu-item"
+                      onClick={handleGoogleDriveSelect}
+                    >
+                      <span className="plus-menu-icon">📁</span>
+                      <span>Add from Google Drive</span>
+                    </button>
+                    <div className="plus-menu-divider"></div>
+                    <button className="plus-menu-item" onClick={() => setShowPlusMenu(false)}>
+                      <span className="plus-menu-icon">👆</span>
+                      <span>Agent mode</span>
+                      <span className="plus-menu-badge">NEW</span>
+                    </button>
+                    <button className="plus-menu-item" onClick={() => setShowPlusMenu(false)}>
+                      <span className="plus-menu-icon">🔭</span>
+                      <span>Deep research</span>
+                    </button>
+                    <button className="plus-menu-item" onClick={() => setShowPlusMenu(false)}>
+                      <span className="plus-menu-icon">🖼️</span>
+                      <span>Create image</span>
+                    </button>
+                    <button className="plus-menu-item" onClick={() => setShowPlusMenu(false)}>
+                      <span className="plus-menu-icon">🌐</span>
+                      <span>Web search</span>
+                    </button>
+                    <div className="plus-menu-divider"></div>
+                    <button className="plus-menu-item" onClick={() => setShowPlusMenu(false)}>
+                      <span className="plus-menu-icon">•••</span>
+                      <span>More</span>
+                      <span className="plus-menu-arrow">{'>'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              <input
+                type="file"
+                id="attachment-input-messages"
+                multiple
+                accept="image/*,video/*,.pdf,.doc,.docx,.txt,.webm,.mp4,.ogg,.wav"
+                onChange={handleAttachment}
+                className="hidden"
+                aria-label="Upload attachments"
+              />
+              
+              {/* Attachment preview chips */}
+              {attachments.length > 0 && (
+                <div className="attachment-preview">
+                  {attachments.map((file, index) => (
+                    <div key={index} className="attachment-chip">
+                      <span>📎</span>
+                      <span className="attachment-name">{file.name}</span>
+                      <button 
+                        type="button"
+                        onClick={() => setAttachments(attachments.filter((_, i) => i !== index))}
+                        title="Remove attachment"
+                        className="attachment-remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Footer Disclaimer */}
+              <div className="chatbar-footer">
+                <p>
+                  AXONS AI may Display inaccurate information and does not represent other 's views.
+                  Double check reposed. <a href="#" className="footer-link">Learn more</a>
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          messageId={contextMenu.messageId}
+          messageRole={messages.find(m => m.id === contextMenu.messageId)?.role || "user"}
+          onClose={handleContextMenuClose}
+          onFeedback={handleFeedback}
+          onReply={handleReply}
+          onRegenerate={handleRegenerate}
+          onDelete={handleDeleteMessage}
+          onCopy={handleCopy}
+          currentFeedback={messageFeedbacks[contextMenu.messageId] || messages.find(m => m.id === contextMenu.messageId)?.feedback}
+        />
+      )}
+
+      {assistantOptionsMenu && typeof window !== 'undefined' && (
+        <div
+          className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-[9999] min-w-64 assistant-options-positioned"
+          style={{ 
+            top: assistantOptionsMenu.y, 
+            left: assistantOptionsMenu.x,
+            background: '#ffffff',
+            border: '1px solid #E4E7EC',
+            borderRadius: '8px',
+            boxShadow: '0 8px 24px rgba(16, 24, 40, 0.12)',
+            zIndex: 9999,
+            minWidth: '200px',
+            padding: '4px 0'
+          }}
+          onMouseLeave={closeAssistantOptions}
+        >
+          <button 
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
+            onClick={() => handleOptionsTryAgain(assistantOptionsMenu.id)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              textAlign: 'left',
+              background: 'transparent',
+              border: 'none',
+              color: '#344054',
+              fontSize: '14px',
+              lineHeight: '20px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'background-color 0.2s ease'
+            }}
+          >↻ Try again</button>
+          <button 
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
+            onClick={() => handleOptionsAddDetails(assistantOptionsMenu.id)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              textAlign: 'left',
+              background: 'transparent',
+              border: 'none',
+              color: '#344054',
+              fontSize: '14px',
+              lineHeight: '20px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'background-color 0.2s ease'
+            }}
+          >⇡ Add details</button>
+          <button 
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
+            onClick={() => handleOptionsMoreConcise(assistantOptionsMenu.id)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              textAlign: 'left',
+              background: 'transparent',
+              border: 'none',
+              color: '#344054',
+              fontSize: '14px',
+              lineHeight: '20px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'background-color 0.2s ease'
+            }}
+          >≡ More concise</button>
+          <button 
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
+            onClick={() => handleOptionsSearchWeb(assistantOptionsMenu.id)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              textAlign: 'left',
+              background: 'transparent',
+              border: 'none',
+              color: '#344054',
+              fontSize: '14px',
+              lineHeight: '20px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'background-color 0.2s ease'
+            }}
+          >🌐 Search the web</button>
+          <div className="border-t border-gray-200 my-1" />
+          <div className="px-3 py-1 text-xs text-gray-500">Switch model</div>
+          <div className="flex gap-1 px-2 pb-2">
+            {['gpt-5','gpt-4o-mini','gpt-4.1-mini'].map(m => (
+              <button key={m} className={`px-2 py-1 text-xs rounded border ${model===m? 'bg-blue-50 border-blue-300 text-blue-700':'border-gray-200 text-gray-700'}`} onClick={() => handleOptionsSwitchModel(m)}>{m}</button>
+            ))}
+    </div>
+        </div>
+      )}
+
+      {/* Google Drive Picker */}
+      {showGoogleDrivePicker && (
+        <GoogleDrivePicker
+          onFileSelect={handleGoogleDriveFiles}
+          onClose={() => setShowGoogleDrivePicker(false)}
+        />
+      )}
+    </AuthWrapper>
+  );
+}
