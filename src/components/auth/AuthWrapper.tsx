@@ -17,10 +17,11 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
     console.log("AuthWrapper - Session data:", session);
     
     // Show login modal if no valid session
-    if (status === "unauthenticated" || !session?.user?.id) {
+    const s: any = session as any;
+    if (status === "unauthenticated" || !s?.user?.id) {
       console.log("AuthWrapper - Showing login modal");
       setShowLoginModal(true);
-    } else if (status === "authenticated" && session?.user?.id) {
+    } else if (status === "authenticated" && s?.user?.id) {
       console.log("AuthWrapper - User authenticated, hiding login modal");
       setShowLoginModal(false);
     }
