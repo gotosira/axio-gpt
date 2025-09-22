@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const assistantId = searchParams.get("assistantId") || undefined;
 
-    let whereClause: Parameters<typeof prisma.conversation.findMany>[0]["where"] = { userId: session.user.id };
+    // Relax typing here to avoid Prisma generic inference issues in strict builds
+    let whereClause: any = { userId: session.user.id };
     if (assistantId) {
       if (assistantId === 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0') {
         // For Babao, also include legacy conversations with null assistantId
