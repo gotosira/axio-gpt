@@ -20,7 +20,7 @@ export const authOptions = {
     }),
   ],
   callbacks: {
-    session: async ({ session, token }) => {
+    session: async ({ session, token }: { session: any; token: any }) => {
       if (session?.user && token?.sub) {
         session.user.id = token.sub;
       }
