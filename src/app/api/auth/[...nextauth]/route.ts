@@ -1,6 +1,7 @@
-import NextAuth, { NextAuthOptions } from "next-auth";
+import NextAuth from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-const handler = NextAuth(authOptions as NextAuthOptions);
+// Cast to any to satisfy TypeScript in edge/runtime builds
+const handler = (NextAuth as unknown as (opts: unknown) => unknown)(authOptions);
 
 export { handler as GET, handler as POST };
