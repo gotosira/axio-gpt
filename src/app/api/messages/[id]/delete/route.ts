@@ -5,9 +5,10 @@ import { prisma } from "@/lib/db";
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -16,7 +17,7 @@ export async function DELETE(
     // Verify the message belongs to the user
     const message = await prisma.message.findFirst({
       where: {
-        id: params.id,
+        id,
         conversation: {
           userId: session.user.id
         }
@@ -31,8 +32,8 @@ export async function DELETE(
     await prisma.message.deleteMany({
       where: {
         OR: [
-          { id: params.id },
-          { parentId: params.id }
+          { id },
+          { parentId: id }
         ]
       }
     });

@@ -5,10 +5,11 @@ import { prisma } from "@/lib/db";
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log("Feedback API called with params:", params);
+    const { id } = await context.params;
+    console.log("Feedback API called with params:", { id });
     
     const session = await getServerSession(authOptions);
     console.log("Session:", { userId: session?.user?.id, hasSession: !!session });
@@ -18,17 +19,17 @@ export async function PATCH(
     }
 
     const { feedback } = await request.json();
-    console.log("Feedback data:", { feedback, messageId: params.id });
+    console.log("Feedback data:", { feedback, messageId: id });
     
     if (!["like", "dislike", null].includes(feedback)) {
       return NextResponse.json({ error: "Invalid feedback value" }, { status: 400 });
     }
 
     // Verify the message belongs to the user
-    console.log("Looking for message with ID:", params.id);
+    console.log("Looking for message with ID:", id);
     const message = await prisma.message.findFirst({
       where: {
-        id: params.id,
+        id,
         conversation: {
           userId: session.user.id
         }
@@ -42,9 +43,9 @@ export async function PATCH(
     }
 
     // Update the feedback
-    console.log("Updating feedback for message:", params.id, "with feedback:", feedback);
+    console.log("Updating feedback for message:", id, "with feedback:", feedback);
     const updatedMessage = await prisma.message.update({
-      where: { id: params.id },
+      where: { id },
       data: { feedback },
       include: {
         conversation: true
