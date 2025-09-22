@@ -7,7 +7,9 @@
     "dev": "dotenv -e .env.local -- next dev",
     "build": "dotenv -e .env.local -- next build",
     "start": "dotenv -e .env.local -- next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:gh-pages": "GITHUB_PAGES=true next build && touch out/.nojekyll",
+    "deploy:gh-pages": "npm run build:gh-pages && gh-pages -d out -b gh-pages -m 'deploy: GitHub Pages'"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",
@@ -15,6 +17,7 @@
     "ai": "^5.0.44",
     "class-variance-authority": "^0.7.1",
     "highlight.js": "^11.11.1",
+    "katex": "^0.16.9",
     "lucide-react": "^0.544.0",
     "next": "15.5.3",
     "next-auth": "^4.24.11",
@@ -28,7 +31,6 @@
     "rehype-katex": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
-    "katex": "^0.16.9",
     "tailwind-merge": "^3.3.1",
     "zod": "^3.25.8"
   },
@@ -42,6 +44,7 @@
     "dotenv-cli": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.3",
+    "gh-pages": "^6.3.0",
     "postcss": "^8.5.6",
     "tailwindcss": "4.1",
     "typescript": "^5"

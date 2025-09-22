@@ -1,9 +1,22 @@
 /** @type {import('next').NextConfig} */
+const isGhPages = process.env.GITHUB_PAGES === 'true';
+const repoName = 'axio-gpt';
+
 const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // When building for GitHub Pages, emit a fully static export into ./out
+  ...(isGhPages
+    ? {
+        output: 'export',
+        trailingSlash: true,
+        assetPrefix: `/${repoName}/`,
+        basePath: `/${repoName}`,
+      }
+    : {}),
   images: {
+    ...(isGhPages ? { unoptimized: true } : {}),
     remotePatterns: [
       {
         protocol: 'https',
