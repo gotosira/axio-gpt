@@ -7,8 +7,8 @@ export const authOptions = {
   debug: process.env.NODE_ENV === "development", // Enable debug mode in development
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: (process.env.GOOGLE_CLIENT_ID || "").trim(),
+      clientSecret: (process.env.GOOGLE_CLIENT_SECRET || "").trim(),
       authorization: {
         params: {
           scope:
