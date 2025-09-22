@@ -174,7 +174,8 @@ export async function POST(req: NextRequest) {
     console.log('Messages retrieved:', messages.data?.length);
     
     // Get the assistant's latest message
-    const assistantMessage = messages.data?.find(msg => msg.role === 'assistant');
+    type ThreadMessage = { role?: string; content?: Array<{ text?: { value?: string } }> };
+    const assistantMessage = (messages.data as ThreadMessage[] | undefined)?.find((msg: ThreadMessage) => msg.role === 'assistant');
     const text = assistantMessage?.content?.[0]?.text?.value || "No response";
     
     return NextResponse.json({ text, openai: { thread_id: thread.id, run_id: run.id } });
