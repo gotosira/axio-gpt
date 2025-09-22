@@ -53,10 +53,10 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [responseId, setResponseId] = useState<string | undefined>(undefined);
   const [assistantId, setAssistantId] = useState<string | undefined>(process.env.NEXT_PUBLIC_ASSISTANT_ID as string | undefined);
-  const babaoAvatar = process.env.NEXT_PUBLIC_AVATAR_BABAO ?? '/avatars/babao.svg';
-  const deedeeAvatar = process.env.NEXT_PUBLIC_AVATAR_DEEDEE ?? '/avatars/deedee.svg';
-  const pungpungAvatar = process.env.NEXT_PUBLIC_AVATAR_PUNGPUNG ?? '/avatars/pungpung.svg';
-  const flowflowAvatar = process.env.NEXT_PUBLIC_AVATAR_FLOWFLOW ?? '/avatars/flowflow.svg';
+  const babaoAvatar = process.env.NEXT_PUBLIC_AVATAR_BABAO ?? '/avatars/BaoBao.jpeg';
+  const deedeeAvatar = process.env.NEXT_PUBLIC_AVATAR_DEEDEE ?? '/avatars/DeeDee.png';
+  const pungpungAvatar = process.env.NEXT_PUBLIC_AVATAR_PUNGPUNG ?? '/avatars/PungPung.png';
+  const flowflowAvatar = process.env.NEXT_PUBLIC_AVATAR_FLOWFLOW ?? '/avatars/FlowFlow.jpeg';
   const assistantCatalog = [
     { id: 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0', code: 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0', name: 'Babao', emoji: '🍼', avatar: babaoAvatar },
     { id: 'asst_CO7qtWO5QTfgV0Gyv77XQY8q', code: 'asst_CO7qtWO5QTfgV0Gyv77XQY8q', name: 'DeeDee', emoji: '🦊', avatar: deedeeAvatar },
@@ -275,7 +275,8 @@ export default function Home() {
   // Load conversations and suggestions when user is authenticated
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (session?.user && 'id' in session.user) {
+    // Only load if session is fully loaded and user is authenticated
+    if (session?.user && 'id' in session.user && session.user.id) {
       loadConversations(assistantId);
       loadSuggestions();
     }
@@ -395,10 +396,15 @@ export default function Home() {
         const data = await response.json();
         setConversations(data);
         return data as Conversation[];
+      } else if (response.status === 401) {
+        // User not authenticated, silently return empty array
+        return [] as Conversation[];
       } else {
+        console.warn('Failed to load conversations:', response.status, response.statusText);
         return [] as Conversation[];
       }
     } catch (error) {
+      console.warn('Error loading conversations:', error);
       return [] as Conversation[];
     }
   };
@@ -409,9 +415,14 @@ export default function Home() {
       if (response.ok) {
         const data = await response.json();
         setSuggestions(data.suggestions || []);
+      } else if (response.status === 401) {
+        // User not authenticated, silently return
+        return;
+      } else {
+        console.warn('Failed to load suggestions:', response.status, response.statusText);
       }
     } catch (error) {
-      // Silently fail loading suggestions
+      console.warn('Error loading suggestions:', error);
     }
   };
 
