@@ -1,8 +1,13 @@
 import * as React from "react";
-import TextareaAutosize from "react-textarea-autosize";
+import TextareaAutosize, { TextareaAutosizeProps } from "react-textarea-autosize";
 import { twMerge } from "tailwind-merge";
 
-export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
+export type TextareaProps = Omit<
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>,
+  keyof Pick<TextareaAutosizeProps, "style">
+> & {
+  style?: React.CSSProperties;
+};
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, ...props }, ref) => (
@@ -15,7 +20,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       )}
       minRows={2}
       maxRows={10}
-      {...props}
+      {...(props as Omit<TextareaProps, "style">)}
     />
   )
 );
