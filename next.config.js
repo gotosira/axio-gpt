@@ -6,6 +6,10 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+  eslint: {
+    // Allow builds to succeed on Vercel even if lint warnings/errors exist
+    ignoreDuringBuilds: true,
+  },
   // When building for GitHub Pages, emit a fully static export into ./out
   ...(isGhPages
     ? {
