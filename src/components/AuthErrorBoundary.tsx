@@ -40,3 +40,4 @@ export function AuthErrorBoundary({ children }: AuthErrorBoundaryProps) {
   return <>{children}</>;
 }
 
+
