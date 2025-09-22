@@ -1,6 +1,5 @@
 "use client";
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
-import Image from "next/image";
 import { createPortal } from "react-dom";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
@@ -1891,7 +1890,16 @@ export default function Home() {
                     }}
                   >
                     <div className="assistant-avatar">
-                      <Image src={a.avatar || '/avatars/babao.svg'} alt={a.name} width={200} height={200} className="w-full h-full object-cover" />
+                      <img 
+                        src={a.avatar || '/avatars/BaoBao.jpeg'} 
+                        alt={a.name} 
+                        className="w-full h-full object-cover" 
+                        onError={(e) => {
+                          console.log('Avatar failed to load:', a.name, a.avatar);
+                          e.currentTarget.src = '/avatars/BaoBao.jpeg';
+                        }}
+                        onLoad={() => console.log('Avatar loaded successfully:', a.name, a.avatar)}
+                      />
                     </div>
                     <div className="assistant-name">{a.name}</div>
                   </button>

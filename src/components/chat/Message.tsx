@@ -5,7 +5,6 @@ import remarkMath from "remark-math";
 import rehypeHighlight from "rehype-highlight";
 import rehypeKatex from "rehype-katex";
 import 'katex/dist/katex.min.css';
-import Image from "next/image";
 import { Bot, ThumbsUp, ThumbsDown } from "lucide-react";
 
 interface MessageProps {
@@ -65,12 +64,15 @@ export function Message({
             {role === 'assistant' && (
         <div className="avatar avatar-lg">
           {assistantAvatarUrl ? (
-            <Image
+            <img
               src={assistantAvatarUrl}
               alt="Assistant"
-              width={32}
-              height={32}
               className="w-full h-full rounded-full object-cover border border-[#a6b0bf]"
+              onError={(e) => {
+                console.log('Message avatar failed to load:', assistantAvatarUrl);
+                e.currentTarget.src = '/avatars/BaoBao.jpeg';
+              }}
+              onLoad={() => console.log('Message avatar loaded successfully:', assistantAvatarUrl)}
             />
           ) : (
             <div className="w-full h-full bg-[#f2f4f7] rounded-full flex items-center justify-center border border-[#a6b0bf]">
