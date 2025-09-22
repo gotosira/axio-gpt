@@ -94,22 +94,21 @@ export async function POST(req: NextRequest) {
           }
           if (mime.includes("pdf")) {
             try {
-              // Dynamic import to avoid hard dependency
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const mod: any = await import(/* webpackIgnore: true */ 'pdf-parse').catch(() => null);
-              if (mod && mod.default) {
-                // Convert to Buffer for pdf-parse
+              // Defer require to runtime; avoid bundler/types issues
+              // eslint-disable-next-line @typescript-eslint/no-var-requires
+              const mod = require('pdf-parse');
+              if (mod) {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const nodeBuf: any = Buffer.from(bytes);
-                const out = await mod.default(nodeBuf);
+                const out = await mod(nodeBuf);
                 if (out?.text) return out.text as string;
               }
             } catch {}
           }
           if (mime.includes('spreadsheetml.sheet') || mime === 'application/vnd.ms-excel') {
             try {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const xlsx: any = await import(/* webpackIgnore: true */ 'xlsx').catch(() => null);
+              // eslint-disable-next-line @typescript-eslint/no-var-requires
+              const xlsx = require('xlsx');
               if (xlsx) {
                 const wb = xlsx.read(new Uint8Array(bytes), { type: 'array' });
                 const sheetName = wb.SheetNames[0];
