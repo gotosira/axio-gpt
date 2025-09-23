@@ -159,6 +159,63 @@ export default function Home() {
     return 'AI Assistant';
   };
 
+  // Create conversation immediately when user starts typing
+  const createConversationOnInput = async (inputText: string) => {
+    if (!currentConvId && !hasCreatedConversationForInput && inputText.trim()) {
+      setHasCreatedConversationForInput(true);
+      
+      let provisionalTitle = 'New Chat';
+      let conversationAssistantId = assistantId;
+      
+      // Handle group chat and beta mode titles
+      if (groupChatMode) {
+        provisionalTitle = 'Group Chat';
+        conversationAssistantId = 'group';
+      } else if (betaMode && !assistantId) {
+        provisionalTitle = 'New Chat (Beta)';
+        conversationAssistantId = 'beta';
+      } else if (assistantId) {
+        // Generate proper title with assistant name
+        const assistantName = getAssistantName(assistantId);
+        provisionalTitle = `New Chat with ${assistantName}`;
+      }
+      
+      try {
+        const createResp = await fetch("/api/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: provisionalTitle, assistantId: conversationAssistantId }),
+        });
+        
+        if (createResp.ok) {
+          const created = await createResp.json();
+          console.log('Conversation created on input:', created);
+          setCurrentConvId(created.id);
+          setCurrentConversationTitle(provisionalTitle);
+          
+          // Immediately add to sidebar without waiting for API reload
+          setConversations(prev => [created, ...prev]);
+          
+          // Also update cache immediately
+          if (conversationAssistantId) {
+            setConversationCache(prev => ({
+              ...prev,
+              [conversationAssistantId]: [created, ...(prev[conversationAssistantId] || [])]
+            }));
+          }
+          
+          // Background refresh to ensure consistency
+          if (conversationAssistantId) {
+            loadConversations(conversationAssistantId);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to create conversation on input:', error);
+        setHasCreatedConversationForInput(false); // Reset on error
+      }
+    }
+  };
+
   // Intent detection for AI routing in beta mode
   const detectAssistantIntent = (userInput: string): string | null => {
     const input = userInput.toLowerCase();
@@ -299,6 +356,7 @@ export default function Home() {
   const [isTabFocused, setIsTabFocused] = useState<boolean>(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [pendingNotification, setPendingNotification] = useState<{ title: string; body: string; icon?: string } | null>(null);
+  const [hasCreatedConversationForInput, setHasCreatedConversationForInput] = useState<boolean>(false);
   const babaoAvatar = process.env.NEXT_PUBLIC_AVATAR_BABAO ?? '/avatars/BaoBao.jpeg';
   const deedeeAvatar = process.env.NEXT_PUBLIC_AVATAR_DEEDEE ?? '/avatars/DeeDee.png';
   const pungpungAvatar = process.env.NEXT_PUBLIC_AVATAR_PUNGPUNG ?? '/avatars/PungPung.png';
@@ -774,8 +832,10 @@ export default function Home() {
   };
 
   const loadConversation = async (conversationId: string) => {
+    console.log('Loading conversation:', conversationId);
     // Check message cache first
     if (messagesCache[conversationId]) {
+      console.log('Loading from cache:', messagesCache[conversationId].length, 'messages');
       setMessages(messagesCache[conversationId]);
       setCurrentConvId(conversationId);
       return;
@@ -785,6 +845,7 @@ export default function Home() {
       const response = await fetch(`/api/conversations/${conversationId}`);
       if (response.ok) {
         const conversation = await response.json();
+        console.log('Loaded conversation from API:', conversation.messages.length, 'messages');
         // Ensure messages are properly formatted and sorted
         const formattedMessages = conversation.messages
           .sort((a: { createdAt: string }, b: { createdAt: string }) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
@@ -795,6 +856,7 @@ export default function Home() {
             feedback: (msg.feedback === 'like' || msg.feedback === 'dislike' || msg.feedback === null) ? msg.feedback : null,
             parentId: msg.parentId,
           }));
+        console.log('Formatted messages:', formattedMessages.length, 'messages');
         
         // Cache the messages
         setMessagesCache(prev => ({
@@ -806,6 +868,9 @@ export default function Home() {
         
         // Update current conversation title
         setCurrentConversationTitle(conversation.title);
+        
+        // Reset conversation creation flag when loading existing conversation
+        setHasCreatedConversationForInput(false);
         
         // Check if this was a group chat conversation and restore mode
         if (conversation.assistantId === 'group' || conversation.title?.includes('Group Chat')) {
@@ -1298,6 +1363,7 @@ export default function Home() {
     setBetaMode(false);
     setGroupChatMode(false);
     setDetectedAssistant(null);
+    setHasCreatedConversationForInput(false);
     
     const newTitle = `New Chat ${new Date().toLocaleTimeString()}`;
     setCurrentConversationTitle(newTitle);
@@ -2073,6 +2139,9 @@ export default function Home() {
               el.readOnly = false;
               // Sync to React state directly
               setLocalInput(el.value);
+              
+              // Create conversation immediately when user starts typing
+              createConversationOnInput(el.value);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
