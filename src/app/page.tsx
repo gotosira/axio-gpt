@@ -178,6 +178,12 @@ export default function Home() {
   const [instructions] = useState<string>("");
   const [currentConvId, setCurrentConvId] = useState<string | undefined>(undefined);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  
+  // Conversation caching for performance
+  const [conversationCache, setConversationCache] = useState<Record<string, Conversation[]>>({});
+  const [messagesCache, setMessagesCache] = useState<Record<string, ChatMessage[]>>({});
+  const [loadingConversations, setLoadingConversations] = useState<Set<string>>(new Set());
+  
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [suggestions, setSuggestions] = useState<{ title: string; description: string; action: string }[]>([]);
   const [isRecording, setIsRecording] = useState(false);
@@ -523,14 +529,42 @@ export default function Home() {
   }, [messages.length]);
 
   const loadConversations = async (specificAssistantId?: string) => {
+    const targetAssistantId = specificAssistantId || assistantId;
+    
+    // Check cache first
+    if (conversationCache[targetAssistantId]) {
+      setConversations(conversationCache[targetAssistantId]);
+      return conversationCache[targetAssistantId];
+    }
+    
+    // Prevent duplicate loading
+    if (loadingConversations.has(targetAssistantId)) {
+      return conversationCache[targetAssistantId] || [];
+    }
+    
+    setLoadingConversations(prev => new Set(prev).add(targetAssistantId));
+    
     try {
       const url = new URL("/api/conversations", window.location.origin);
-      const targetAssistantId = specificAssistantId || assistantId;
       if (targetAssistantId) url.searchParams.set('assistantId', targetAssistantId);
+      
       const response = await fetch(url.toString());
       if (response.ok) {
         const data = await response.json();
+        
+        // Cache the conversations
+        setConversationCache(prev => ({
+          ...prev,
+          [targetAssistantId]: data
+        }));
+        
         setConversations(data);
+        setLoadingConversations(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(targetAssistantId);
+          return newSet;
+        });
+        
         return data as Conversation[];
       } else if (response.status === 401) {
         // User not authenticated, silently return empty array
@@ -541,6 +575,11 @@ export default function Home() {
       }
     } catch (error) {
       console.warn('Error loading conversations:', error);
+      setLoadingConversations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(targetAssistantId);
+        return newSet;
+      });
       return [] as Conversation[];
     }
   };
@@ -563,6 +602,13 @@ export default function Home() {
   };
 
   const loadConversation = async (conversationId: string) => {
+    // Check message cache first
+    if (messagesCache[conversationId]) {
+      setMessages(messagesCache[conversationId]);
+      setCurrentConvId(conversationId);
+      return;
+    }
+    
     try {
       const response = await fetch(`/api/conversations/${conversationId}`);
       if (response.ok) {
@@ -577,6 +623,13 @@ export default function Home() {
             feedback: (msg.feedback === 'like' || msg.feedback === 'dislike' || msg.feedback === null) ? msg.feedback : null,
             parentId: msg.parentId,
           }));
+        
+        // Cache the messages
+        setMessagesCache(prev => ({
+          ...prev,
+          [conversationId]: formattedMessages
+        }));
+        
         setMessages(formattedMessages);
         
         // Update current conversation title
@@ -1955,12 +2008,18 @@ export default function Home() {
                   <button
                     key={a.id}
                     className={`w-full flex items-center gap-2 px-2 py-2 rounded text-left assistant-button ${assistantId===a.code? 'selected':''} has-tooltip`}
-                    onClick={() => { 
+                    onClick={async () => { 
                       setAssistantId(a.code); 
                       setCurrentConvId(undefined); 
                       setMessages([]); 
-                      loadConversations(a.code); 
                       setCurrentConversationTitle('New Chat'); 
+                      
+                      // Load conversations with caching for faster switching
+                      // Show immediate feedback if cached, otherwise show loading
+                      if (conversationCache[a.code]) {
+                        setConversations(conversationCache[a.code]);
+                      }
+                      await loadConversations(a.code);
                     }}
                     data-tooltip={a.name}
                     onMouseEnter={(e)=>{
@@ -2060,6 +2119,16 @@ export default function Home() {
                     </Button>
         </div>
                 ))}
+                
+                {/* Show loading indicator when conversations are being loaded */}
+                {loadingConversations.has(assistantId || '') && conversations.length === 0 && (
+                  <div className="px-2 py-4 text-center">
+                    <div className="flex items-center justify-center gap-2 text-gray-500">
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                      <span className="text-sm">Loading conversations...</span>
+                    </div>
+                  </div>
+                )}
               </div>
               
             {/* Conversation More Options Menu */}
