@@ -2444,7 +2444,10 @@ export default function Home() {
                           setShowSearch(false);
                         }}
                       >
-                        Switch to dark theme
+                        {(() => {
+                          const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+                          return currentTheme === 'light' ? 'Switch to dark theme' : 'Switch to light theme';
+                        })()}
                       </button>
                     </div>
                   </div>
