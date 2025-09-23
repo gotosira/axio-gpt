@@ -6,6 +6,7 @@ import rehypeHighlight from "rehype-highlight";
 import rehypeKatex from "rehype-katex";
 import 'katex/dist/katex.min.css';
 import { Bot, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ThoughtProcess } from "./ThoughtProcess";
 
 interface MessageProps {
   role: "user" | "assistant";
@@ -20,6 +21,11 @@ interface MessageProps {
   onCopy?: (content: string) => void;
   onOptions?: (event: React.MouseEvent, messageId: string) => void;
   assistantAvatarUrl?: string;
+  thoughtProcess?: {
+    thoughts: string[];
+    duration?: number;
+    isComplete?: boolean;
+  };
 }
 
 export function Message({ 
@@ -34,7 +40,8 @@ export function Message({
   onDelete,
   onCopy,
   onOptions,
-  assistantAvatarUrl
+  assistantAvatarUrl,
+  thoughtProcess
 }: MessageProps) {
   const currentTime = new Date().toLocaleTimeString('en-US', { 
     hour: '2-digit', 
@@ -102,6 +109,15 @@ export function Message({
                 </ul>
               </div>
             )}
+            {/* Show thought process for assistant messages */}
+            {role === 'assistant' && thoughtProcess && (
+              <ThoughtProcess
+                thoughts={thoughtProcess.thoughts}
+                duration={thoughtProcess.duration}
+                isComplete={thoughtProcess.isComplete}
+              />
+            )}
+            
             <article className="chatgpt-msg">
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm, remarkMath]} 
@@ -117,8 +133,33 @@ export function Message({
                         </code>
                         <button 
                           className="copy-btn"
-                          onClick={() => {
-                            navigator.clipboard.writeText(String(children));
+                          onClick={async (event) => {
+                            try {
+                              const textToCopy = String(children).replace(/\n$/, ''); // Remove trailing newline
+                              await navigator.clipboard.writeText(textToCopy);
+                              
+                              // Visual feedback
+                              const button = event.target as HTMLButtonElement;
+                              const originalText = button.textContent;
+                              button.textContent = 'Copied!';
+                              button.style.background = 'rgba(34, 197, 94, 0.2)';
+                              button.style.color = '#22c55e';
+                              
+                              setTimeout(() => {
+                                button.textContent = originalText;
+                                button.style.background = '';
+                                button.style.color = '';
+                              }, 2000);
+                            } catch (err) {
+                              console.error('Failed to copy code:', err);
+                              // Fallback for older browsers
+                              const textArea = document.createElement('textarea');
+                              textArea.value = String(children).replace(/\n$/, '');
+                              document.body.appendChild(textArea);
+                              textArea.select();
+                              document.execCommand('copy');
+                              document.body.removeChild(textArea);
+                            }
                           }}
                           title="Copy code"
                         >

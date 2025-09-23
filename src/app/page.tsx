@@ -19,6 +19,11 @@ type ChatMessage = {
   content: string; 
   feedback?: "like" | "dislike" | null;
   parentId?: string;
+  thoughtProcess?: {
+    thoughts: string[];
+    duration?: number;
+    isComplete?: boolean;
+  };
 };
 type Conversation = { id: string; title: string; messages: ChatMessage[]; createdAt: string; updatedAt: string; assistantId?: string };
 
@@ -85,6 +90,60 @@ export default function Home() {
     // Clear the input and send the suggestion immediately
     setInput('');
     await handleSend(undefined, suggestion);
+  };
+
+  // Generate thought process based on assistant and user input
+  const generateThoughtProcess = (assistantId: string, userInput: string) => {
+    const assistantThoughts = {
+      'asst_sS0Sa5rqQFrrwnwkJ9mULGp0': { // BaoBao
+        thoughts: [
+          "Analyzing the user's request for UX writing assistance...",
+          "Considering the target audience and user group context...",
+          "Evaluating clarity, tone, and appropriateness of language...",
+          "Preparing UX-focused writing recommendations..."
+        ]
+      },
+      'asst_CO7qtWO5QTfgV0Gyv77XQY8q': { // DeeDee
+        thoughts: [
+          "Understanding the UX research context and objectives...",
+          "Identifying key research questions and methodologies...",
+          "Planning user research approach and data collection...",
+          "Preparing actionable insights and recommendations..."
+        ]
+      },
+      'asst_Pi6FrBRHRpvhwSOIryJvDo3T': { // PungPung
+        thoughts: [
+          "Analyzing the data and feedback provided...",
+          "Identifying patterns and trends in the information...",
+          "Processing quantitative and qualitative insights...",
+          "Preparing comprehensive analysis and summaries..."
+        ]
+      },
+      'asst_4nCaYlt7AA5Ro4pseDCTbKHO': { // FlowFlow
+        thoughts: [
+          "Evaluating the design requirements and constraints...",
+          "Considering user experience principles and best practices...",
+          "Planning UI/UX design solutions and improvements...",
+          "Preparing design recommendations and mockups..."
+        ]
+      }
+    };
+
+    const defaultThoughts = [
+      "Processing the user's request...",
+      "Analyzing the context and requirements...",
+      "Preparing a comprehensive response...",
+      "Finalizing recommendations and insights..."
+    ];
+
+    const thoughts = assistantThoughts[assistantId as keyof typeof assistantThoughts]?.thoughts || defaultThoughts;
+    const duration = Math.floor(Math.random() * 15) + 5; // Random duration between 5-20 seconds
+
+    return {
+      thoughts,
+      duration,
+      isComplete: false
+    };
   };
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [allConversations, setAllConversations] = useState<Conversation[]>([]);
@@ -1268,7 +1327,16 @@ export default function Home() {
     const ct = res.headers.get('content-type') || '';
     let assistantText = "";
     const assistantMsgId = crypto.randomUUID();
-    setMessages((prev) => [...prev, { id: assistantMsgId, role: "assistant", content: "" }]);
+    
+    // Generate thought process for this assistant
+    const thoughtProcess = generateThoughtProcess(chosenAssistantId || assistantId || '', input);
+    
+    setMessages((prev) => [...prev, { 
+      id: assistantMsgId, 
+      role: "assistant", 
+      content: "",
+      thoughtProcess
+    }]);
 
     if (ct.includes('application/json')) {
       const data = await res.json().catch(() => ({} as any));
@@ -1343,6 +1411,12 @@ export default function Home() {
         }
       } finally {
         setLoading(false);
+        // Mark thought process as complete
+        setMessages((prev) => prev.map((m) => 
+          m.id === assistantMsgId && m.thoughtProcess 
+            ? { ...m, thoughtProcess: { ...m.thoughtProcess, isComplete: true } }
+            : m
+        ));
       }
     } else {
       // Try reading text body even if not ok/JSON
