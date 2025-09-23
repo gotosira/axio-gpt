@@ -96,6 +96,9 @@ export default function Home() {
     const input = userInput.toLowerCase();
     
     // Check for manual slash commands first
+    if (input.startsWith('/group') || input.startsWith('/all') || input.startsWith('/party')) {
+      return 'group'; // Group Chat
+    }
     if (input.startsWith('/deedee') || input.startsWith('/research')) {
       return 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0'; // DeeDee
     }
@@ -219,9 +222,12 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [responseId, setResponseId] = useState<string | undefined>(undefined);
-  const [assistantId, setAssistantId] = useState<string | undefined>(process.env.NEXT_PUBLIC_ASSISTANT_ID as string | undefined);
+  const [assistantId, setAssistantId] = useState<string | undefined>('asst_sS0Sa5rqQFrrwnwkJ9mULGp0'); // Default to BaoBao
   const [betaMode, setBetaMode] = useState<boolean>(false);
+  const [groupChatMode, setGroupChatMode] = useState<boolean>(false);
   const [detectedAssistant, setDetectedAssistant] = useState<string | null>(null);
+  const [showSlashDropdown, setShowSlashDropdown] = useState<boolean>(false);
+  const [slashDropdownPosition, setSlashDropdownPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const babaoAvatar = process.env.NEXT_PUBLIC_AVATAR_BABAO ?? '/avatars/BaoBao.jpeg';
   const deedeeAvatar = process.env.NEXT_PUBLIC_AVATAR_DEEDEE ?? '/avatars/DeeDee.png';
   const pungpungAvatar = process.env.NEXT_PUBLIC_AVATAR_PUNGPUNG ?? '/avatars/PungPung.png';
@@ -706,6 +712,25 @@ export default function Home() {
         // Update current conversation title
         setCurrentConversationTitle(conversation.title);
         
+        // Check if this was a group chat conversation and restore mode
+        if (conversation.assistantId === 'group' || conversation.title?.includes('Group Chat')) {
+          setGroupChatMode(true);
+          setBetaMode(true);
+          setAssistantId(undefined);
+          setDetectedAssistant('group');
+        } else if (conversation.assistantId === 'beta' || conversation.title?.includes('Beta')) {
+          setBetaMode(true);
+          setGroupChatMode(false);
+          setAssistantId(undefined);
+          setDetectedAssistant(null);
+        } else {
+          // Regular assistant conversation
+          setBetaMode(false);
+          setGroupChatMode(false);
+          setAssistantId(conversation.assistantId || assistantId);
+          setDetectedAssistant(null);
+        }
+        
         // Load feedback states for all messages
         const feedbackStates: Record<string, "like" | "dislike" | null> = {};
         formattedMessages.forEach((msg: ChatMessage) => {
@@ -1174,6 +1199,11 @@ export default function Home() {
     setCurrentConvId(undefined);
     setResponseId(undefined);
     
+    // Reset modes when creating new conversation
+    setBetaMode(false);
+    setGroupChatMode(false);
+    setDetectedAssistant(null);
+    
     const newTitle = `New Chat ${new Date().toLocaleTimeString()}`;
     setCurrentConversationTitle(newTitle);
     
@@ -1365,11 +1395,22 @@ export default function Home() {
     let targetConversationId = overrideConversationId || currentConvId;
     if (!targetConversationId) {
       try {
-        const provisionalTitle = input.slice(0, 60) || 'New Chat';
+        let provisionalTitle = input.slice(0, 60) || 'New Chat';
+        let conversationAssistantId = assistantId;
+        
+        // Handle group chat and beta mode titles
+        if (groupChatMode) {
+          provisionalTitle = 'Group Chat';
+          conversationAssistantId = 'group';
+        } else if (betaMode && !assistantId) {
+          provisionalTitle = 'New Chat (Beta)';
+          conversationAssistantId = 'beta';
+        }
+        
         const createResp = await fetch("/api/conversations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: provisionalTitle, assistantId }),
+          body: JSON.stringify({ title: provisionalTitle, assistantId: conversationAssistantId }),
         });
         if (createResp.ok) {
           const created = await createResp.json();
@@ -1454,8 +1495,14 @@ export default function Home() {
     if (betaMode && !overrideAssistantId && !convoAssistantId) {
       const detectedIntent = detectAssistantIntent(baseText);
       if (detectedIntent) {
-        finalAssistantId = detectedIntent;
-        setDetectedAssistant(detectedIntent);
+        if (detectedIntent === 'group') {
+          setGroupChatMode(true);
+          setAssistantId(undefined);
+          setDetectedAssistant('group');
+        } else {
+          finalAssistantId = detectedIntent;
+          setDetectedAssistant(detectedIntent);
+        }
       }
     }
     
@@ -1994,12 +2041,30 @@ export default function Home() {
                   setMessages([]);
                   setCurrentConversationTitle('New Chat (Beta)');
                   setDetectedAssistant(null);
+                  setGroupChatMode(false);
                   setShowPlusMenu(false);
                 }}
               >
                 <span className="plus-menu-icon">🚀</span>
                 <span>New Chat (Beta)</span>
                 <span className="plus-menu-badge">AI ROUTER</span>
+              </button>
+              <button 
+                className="plus-menu-item"
+                onClick={() => {
+                  setGroupChatMode(true);
+                  setBetaMode(true);
+                  setAssistantId(undefined);
+                  setCurrentConvId(undefined);
+                  setMessages([]);
+                  setCurrentConversationTitle('Group Chat');
+                  setDetectedAssistant('group');
+                  setShowPlusMenu(false);
+                }}
+              >
+                <span className="plus-menu-icon">🎉</span>
+                <span>Group Chat</span>
+                <span className="plus-menu-badge">ALL AIs</span>
               </button>
               <div className="plus-menu-divider"></div>
               <button className="plus-menu-item" onClick={() => setShowPlusMenu(false)}>
@@ -2834,7 +2899,12 @@ export default function Home() {
                   <span className="text-white text-xs font-medium">🚀 BETA</span>
                 </div>
               )}
-              {detectedAssistant && betaMode && (
+              {groupChatMode && (
+                <div className="bg-gradient-to-r from-green-500 to-blue-500 px-2 py-1 rounded-full">
+                  <span className="text-white text-xs font-medium">🎉 Group Chat</span>
+                </div>
+              )}
+              {detectedAssistant && betaMode && !groupChatMode && (
                 <div className="bg-blue-500 px-2 py-1 rounded-full">
                   <span className="text-white text-xs font-medium">
                     {detectedAssistant === 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0' ? '🔬 DeeDee' :
@@ -2898,7 +2968,71 @@ export default function Home() {
         <div className="flex-1 flex flex-col">
           {messages.length === 0 ? (
             <div className="flex-1 flex flex-col">
-              {betaMode && !assistantId ? (
+              {groupChatMode && !assistantId ? (
+                <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 py-12">
+                  <div className="w-24 h-24 rounded-full mb-6 overflow-hidden border-2 border-green-200 dark:border-green-700 shadow-lg bg-gradient-to-br from-green-500 to-blue-500 flex items-center justify-center">
+                    <span className="text-4xl">🎉</span>
+                  </div>
+                  
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                    Group Chat
+                  </h1>
+                  
+                  <div className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4 text-center">
+                    All AIs Working Together
+                  </div>
+                  
+                  <div className="text-gray-700 dark:text-gray-300 mb-8 max-w-2xl text-center leading-relaxed">
+                    ทุก AI จะทำงานร่วมกันเพื่อตอบคำถามของคุณ<br/>
+                    BaoBao, DeeDee, PungPung, และ FlowFlow พร้อมช่วยเหลือ!
+                  </div>
+                  
+                  <div className="w-full max-w-4xl">
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 text-center">
+                        AI Team Members
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                          <span className="text-3xl mb-2 block">🍼</span>
+                          <div className="font-medium text-blue-900 dark:text-blue-100">BaoBao</div>
+                          <div className="text-sm text-blue-700 dark:text-blue-300">UX Writer</div>
+                        </div>
+                        <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                          <span className="text-3xl mb-2 block">🔬</span>
+                          <div className="font-medium text-red-900 dark:text-red-100">DeeDee</div>
+                          <div className="text-sm text-red-700 dark:text-red-300">UX Researcher</div>
+                        </div>
+                        <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                          <span className="text-3xl mb-2 block">📊</span>
+                          <div className="font-medium text-orange-900 dark:text-orange-100">PungPung</div>
+                          <div className="text-sm text-orange-700 dark:text-orange-300">UX Analyst</div>
+                        </div>
+                        <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                          <span className="text-3xl mb-2 block">🎨</span>
+                          <div className="font-medium text-purple-900 dark:text-purple-100">FlowFlow</div>
+                          <div className="text-sm text-purple-700 dark:text-purple-300">UX/UI Designer</div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-6 text-center">
+                        <button
+                          onClick={() => {
+                            setGroupChatMode(false);
+                            setBetaMode(false);
+                            setAssistantId(process.env.NEXT_PUBLIC_ASSISTANT_ID as string | undefined);
+                            setCurrentConversationTitle('New Chat');
+                            setDetectedAssistant(null);
+                          }}
+                          className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
+                        >
+                          ออกจากโหมด Group Chat
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : betaMode && !assistantId ? (
                 <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 py-12">
                   <div className="w-24 h-24 rounded-full mb-6 overflow-hidden border-2 border-purple-200 dark:border-purple-700 shadow-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
                     <span className="text-4xl">🚀</span>
@@ -2910,12 +3044,12 @@ export default function Home() {
                   
                   <div className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4 text-center">
                     AI Router - เลือก AI ที่เหมาะสมโดยอัตโนมัติ
-                  </div>
+                        </div>
                   
                   <div className="text-gray-700 dark:text-gray-300 mb-8 max-w-2xl text-center leading-relaxed">
                     ระบบจะช่วยวิเคราะห์คำถามของคุณและเรียกใช้ AI ที่เหมาะสมที่สุด<br/>
                     หรือใช้คำสั่ง / เพื่อเลือก AI เองได้เลย!
-                  </div>
+                          </div>
                   
                   <div className="w-full max-w-6xl">
                     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
@@ -2929,15 +3063,15 @@ export default function Home() {
                             <div>
                               <div className="font-medium text-blue-900 dark:text-blue-100">/deedee</div>
                               <div className="text-sm text-blue-700 dark:text-blue-300">UX Research & การวิจัย</div>
-                            </div>
-                          </div>
+                        </div>
+                      </div>
                           <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                             <span className="text-2xl">🍼</span>
                             <div>
                               <div className="font-medium text-green-900 dark:text-green-100">/baobao</div>
                               <div className="text-sm text-green-700 dark:text-green-300">แปลภาษา & ข้อความ</div>
-                            </div>
-                          </div>
+                  </div>
+                </div>
                         </div>
                         <div className="space-y-3">
                           <div className="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
@@ -2952,6 +3086,13 @@ export default function Home() {
                             <div>
                               <div className="font-medium text-purple-900 dark:text-purple-100">/flowflow</div>
                               <div className="text-sm text-purple-700 dark:text-purple-300">UX/UI Design & ออกแบบ</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg">
+                            <span className="text-2xl">🎉</span>
+                            <div>
+                              <div className="font-medium text-green-900 dark:text-green-100">/group</div>
+                              <div className="text-sm text-green-700 dark:text-green-300">All AIs Working Together</div>
                             </div>
                           </div>
                         </div>
