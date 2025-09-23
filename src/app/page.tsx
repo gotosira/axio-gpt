@@ -1568,7 +1568,7 @@ export default function Home() {
               setLocalInput(el.value);
             }}
             onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+              if (e.key === 'Enter') {
                 e.preventDefault();
                 const value = (localInput || e.currentTarget.value || '').trim();
                 if (value) {
