@@ -91,6 +91,67 @@ export default function Home() {
     await handleSend(undefined, suggestion);
   };
 
+  // Notification functions
+  const requestNotificationPermission = async () => {
+    if (!('Notification' in window)) {
+      console.log('This browser does not support notifications');
+      return false;
+    }
+
+    if (Notification.permission === 'granted') {
+      setNotificationPermission('granted');
+      return true;
+    }
+
+    if (Notification.permission !== 'denied') {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      return permission === 'granted';
+    }
+
+    return false;
+  };
+
+  const showNotification = async (title: string, body: string, icon?: string) => {
+    if (!isTabFocused && notificationPermission === 'granted') {
+      try {
+        const notification = new Notification(title, {
+          body,
+          icon: icon || '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: 'ai-response',
+          requireInteraction: false,
+          silent: false
+        });
+
+        // Auto-close notification after 5 seconds
+        setTimeout(() => {
+          notification.close();
+        }, 5000);
+
+        // Focus tab when notification is clicked
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      } catch (error) {
+        console.warn('Failed to show notification:', error);
+      }
+    } else if (!isTabFocused) {
+      // Store pending notification if permission not granted
+      setPendingNotification({ title, body, icon });
+    }
+  };
+
+  const getAssistantName = (assistantId: string | undefined): string => {
+    if (!assistantId) return 'AI Assistant';
+    if (assistantId === 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0') return 'BaoBao';
+    if (assistantId === 'asst_CO7qtWO5QTfgV0Gyv77XQY8q') return 'DeeDee';
+    if (assistantId === 'asst_Pi6FrBRHRpvhwSOIryJvDo3T') return 'PungPung';
+    if (assistantId === 'asst_4nCaYlt7AA5Ro4pseDCTbKHO') return 'FlowFlow';
+    return 'AI Assistant';
+  };
+
   // Intent detection for AI routing in beta mode
   const detectAssistantIntent = (userInput: string): string | null => {
     const input = userInput.toLowerCase();
@@ -228,6 +289,9 @@ export default function Home() {
   const [detectedAssistant, setDetectedAssistant] = useState<string | null>(null);
   const [showSlashDropdown, setShowSlashDropdown] = useState<boolean>(false);
   const [slashDropdownPosition, setSlashDropdownPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [isTabFocused, setIsTabFocused] = useState<boolean>(true);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [pendingNotification, setPendingNotification] = useState<{ title: string; body: string; icon?: string } | null>(null);
   const babaoAvatar = process.env.NEXT_PUBLIC_AVATAR_BABAO ?? '/avatars/BaoBao.jpeg';
   const deedeeAvatar = process.env.NEXT_PUBLIC_AVATAR_DEEDEE ?? '/avatars/DeeDee.png';
   const pungpungAvatar = process.env.NEXT_PUBLIC_AVATAR_PUNGPUNG ?? '/avatars/PungPung.png';
@@ -510,7 +574,7 @@ export default function Home() {
     };
   }, [showPlusMenu, showConversationMenu]);
 
-  // Load assistantId from localStorage on mount
+  // Load assistantId from localStorage on mount and setup notifications
   useEffect(() => {
     try {
       const saved = localStorage.getItem("assistantId");
@@ -519,6 +583,37 @@ export default function Home() {
         setUseAssistant(true);
       }
     } catch {}
+
+    // Request notification permission on mount
+    requestNotificationPermission();
+
+    // Setup tab focus/blur detection
+    const handleFocus = () => {
+      setIsTabFocused(true);
+      // Clear any pending notifications when user returns to tab
+      setPendingNotification(null);
+    };
+
+    const handleBlur = () => {
+      setIsTabFocused(false);
+    };
+
+    const handleVisibilityChange = () => {
+      setIsTabFocused(!document.hidden);
+      if (!document.hidden) {
+        setPendingNotification(null);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // Persist assistantId to localStorage
@@ -1633,6 +1728,13 @@ export default function Home() {
           }
 
           setLoading(false);
+          
+          // Show notification when image generation is complete
+          showNotification(
+            'FlowFlow has finished creating your image',
+            'Your UI/UX design has been generated and is ready to view.',
+            flowflowAvatar
+          );
           return;
         } else {
           const errorData = await imageResponse.json();
@@ -1669,6 +1771,14 @@ export default function Home() {
       assistantText = data.text || data.output_text || '';
       setMessages((prev)=> prev.map(m=> m.id===assistantMsgId ? { ...m, content: assistantText } : m));
       setLoading(false);
+      
+      // Show notification when AI response is complete and user is not focused on tab
+      const assistantName = groupChatMode ? 'AI Team' : getAssistantName(finalAssistantId);
+      showNotification(
+        `${assistantName} has finished responding`,
+        `Your AI assistant has completed their response to your message.`,
+        assistantId ? assistantCatalog.find(a => a.code === assistantId)?.avatar : undefined
+      );
     } else if (res.body) {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -1747,6 +1857,14 @@ export default function Home() {
             ? { ...m, thoughtProcess: { ...m.thoughtProcess, isComplete: true } }
             : m
         ));
+        
+        // Show notification when AI response is complete and user is not focused on tab
+        const assistantName = groupChatMode ? 'AI Team' : getAssistantName(finalAssistantId);
+        showNotification(
+          `${assistantName} has finished responding`,
+          `Your AI assistant has completed their response to your message.`,
+          assistantId ? assistantCatalog.find(a => a.code === assistantId)?.avatar : undefined
+        );
       }
     } else {
       // Try reading text body even if not ok/JSON
@@ -2913,6 +3031,11 @@ export default function Home() {
                   </span>
                 </div>
               )}
+              {pendingNotification && (
+                <div className="bg-orange-500 px-2 py-1 rounded-full animate-pulse">
+                  <span className="text-white text-xs font-medium">🔔 New Response</span>
+                </div>
+              )}
               <div className="bg-[#07a721] px-2 py-1 rounded-full">
                 <span className="text-[#f9fbf9] text-sm font-medium">Online</span>
               </div>
@@ -2940,6 +3063,23 @@ export default function Home() {
                   >{mode}</button>
                 ))}
                 <div className="px-3 py-2 text-sm text-primary border-t border-[#e4e7ec] mt-1">Preferences</div>
+                <button
+                  className="w-full text-left px-3 py-2 text-sm flex items-center justify-between"
+                  onClick={async () => {
+                    const granted = await requestNotificationPermission();
+                    if (granted) {
+                      alert('Notifications enabled! You will receive alerts when AI responses are complete.');
+                    } else {
+                      alert('Notifications were denied. You can enable them in your browser settings.');
+                    }
+                    (document.getElementById('settings-theme-menu') as HTMLElement)?.classList.add('hidden');
+                  }}
+                >
+                  <span>🔔 Notifications</span>
+                  <span className="text-xs text-gray-500">
+                    {notificationPermission === 'granted' ? 'Enabled' : 'Disabled'}
+                  </span>
+                </button>
                 <button
                   className="w-full text-left px-3 py-2 text-sm flex items-center justify-between"
                   onClick={()=> setPrefSound(!prefSound)}
@@ -2980,7 +3120,7 @@ export default function Home() {
                   
                   <div className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4 text-center">
                     All AIs Working Together
-                  </div>
+                        </div>
                   
                   <div className="text-gray-700 dark:text-gray-300 mb-8 max-w-2xl text-center leading-relaxed">
                     ทุก AI จะทำงานร่วมกันเพื่อตอบคำถามของคุณ<br/>
@@ -3027,16 +3167,16 @@ export default function Home() {
                           className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
                         >
                           ออกจากโหมด Group Chat
-                        </button>
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
                   </div>
-                </div>
               ) : betaMode && !assistantId ? (
                 <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 py-12">
                   <div className="w-24 h-24 rounded-full mb-6 overflow-hidden border-2 border-purple-200 dark:border-purple-700 shadow-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
                     <span className="text-4xl">🚀</span>
-                  </div>
+                </div>
                   
                   <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                     New Chat (Beta)
