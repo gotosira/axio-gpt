@@ -75,7 +75,7 @@ export function AssistantWelcome({ assistantId, onSuggestionClick }: AssistantWe
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 py-12">
       {/* Avatar */}
-      <div className="w-24 h-24 rounded-full mb-6 overflow-hidden border-2 border-gray-200">
+      <div className="w-24 h-24 rounded-full mb-6 overflow-hidden border-2 border-gray-200 dark:border-gray-700 shadow-lg">
         <img
           src={assistant.avatar}
           alt={assistant.name}
@@ -87,25 +87,25 @@ export function AssistantWelcome({ assistantId, onSuggestionClick }: AssistantWe
       </div>
 
       {/* Title */}
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
         {assistant.name} - {assistant.title}
       </h1>
 
 
       {/* Greeting */}
-      <div className="text-lg font-medium text-gray-900 mb-4 text-center">
+      <div className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4 text-center">
         {assistant.greeting}
       </div>
 
       {/* Description */}
-      <div className="text-gray-700 mb-8 max-w-2xl text-center leading-relaxed">
+      <div className="text-gray-700 dark:text-gray-300 mb-8 max-w-2xl text-center leading-relaxed">
         {assistant.description}
       </div>
 
       {/* Suggestions - Horizontal Layout */}
       <div className="w-full max-w-6xl">
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 text-center">
             คำแนะนำสำหรับเริ่มต้น
           </h3>
           <div className="flex flex-wrap gap-3 justify-center">
@@ -114,22 +114,22 @@ export function AssistantWelcome({ assistantId, onSuggestionClick }: AssistantWe
                 {typeof suggestion === 'string' ? (
                   <Button
                     variant="outline"
-                    className="h-auto p-3 text-left justify-start border-gray-200 hover:border-blue-300 hover:bg-blue-50 whitespace-normal"
+                    className="h-auto p-4 text-left justify-start border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 whitespace-normal transition-all duration-200 shadow-sm hover:shadow-md"
                     onClick={() => onSuggestionClick(suggestion)}
                   >
-                    <span className="text-sm max-w-xs">{suggestion}</span>
+                    <span className="text-sm max-w-xs text-gray-800 dark:text-gray-200 leading-relaxed">{suggestion}</span>
                   </Button>
                 ) : (
                   <Button
                     variant="outline"
-                    className="h-auto p-3 text-left justify-start border-gray-200 hover:border-blue-300 hover:bg-blue-50"
+                    className="h-auto p-4 text-left justify-start border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 shadow-sm hover:shadow-md"
                     onClick={() => onSuggestionClick(`${suggestion.text} ${suggestion.subtext}`)}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <span className="text-lg">{suggestion.icon}</span>
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium">{suggestion.text}</span>
-                        <span className="text-xs text-gray-600">{suggestion.subtext}</span>
+                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{suggestion.text}</span>
+                        <span className="text-xs text-gray-600 dark:text-gray-400">{suggestion.subtext}</span>
                       </div>
                     </div>
                   </Button>

@@ -95,15 +95,17 @@ html[data-theme="dark"] :root {
 
 /* Dark mode mark/highlight styling */
 @media (prefers-color-scheme: dark) {
-  .chatgpt-msg mark {
-    background: #1e40af;
-    color: #dbeafe;
+  .chatgpt-msg mark,
+  mark {
+    background: #1e40af !important;
+    color: #dbeafe !important;
   }
 }
 
-html[data-theme="dark"] .chatgpt-msg mark {
-  background: #1e40af;
-  color: #dbeafe;
+html[data-theme="dark"] .chatgpt-msg mark,
+html[data-theme="dark"] mark {
+  background: #1e40af !important;
+  color: #dbeafe !important;
 }
 
 ::selection { background: var(--selection); }
@@ -419,12 +421,13 @@ html[data-theme="dark"] .chatgpt-msg mark {
    ========================= */
 .chatgpt-msg del { text-decoration: line-through; text-decoration-thickness: 2px; }
 .chatgpt-msg ins { text-decoration: underline; text-decoration-thickness: 2px; }
-.chatgpt-msg mark { 
-  background: #dbeafe; 
-  color: #1e40af; 
-  padding: 0 .2em; 
-  border-radius: 3px; 
-  font-weight: 500;
+.chatgpt-msg mark,
+mark { 
+  background: #dbeafe !important; 
+  color: #1e40af !important; 
+  padding: 0 .2em !important; 
+  border-radius: 3px !important; 
+  font-weight: 500 !important;
 }
 
 /* =========================
