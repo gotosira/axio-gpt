@@ -134,6 +134,8 @@ export function Message({
                         <button 
                           className="copy-btn"
                           onClick={async (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
                             try {
                               // Get the actual text content from the code element
                               const codeElement = (event.target as HTMLElement).parentElement?.querySelector('code');
