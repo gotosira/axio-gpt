@@ -154,10 +154,8 @@ export default function Home() {
   // Search filter states
   const [searchSortBy, setSearchSortBy] = useState<'relevance' | 'date' | 'title'>('relevance');
   const [searchTitleOnly, setSearchTitleOnly] = useState(false);
-  const [searchCreatedBy, setSearchCreatedBy] = useState<string>('all');
   const [searchAssistant, setSearchAssistant] = useState<string>('all');
-  const [searchIn, setSearchIn] = useState<string>('all');
-  const [searchDate, setSearchDate] = useState<string>('all');
+  const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [responseId, setResponseId] = useState<string | undefined>(undefined);
@@ -270,6 +268,7 @@ export default function Home() {
 
   const runSearch = useCallback(async (q: string) => {
     setSearchQuery(q);
+    setSelectedResultIndex(0); // Reset selection when searching
     if (!q.trim()) { setSearchResults([]); return; }
     
     // Client-side quick search with filtering
@@ -2096,12 +2095,30 @@ export default function Home() {
                       placeholder="Search or ask a question in AXIO-GPT..."
                       value={searchQuery}
                       onChange={(e)=> runSearch(e.target.value)}
-                      onKeyDown={(e)=>{ if(e.key==='Enter' && searchResults[0]){
-                        const first = searchResults[0];
-                        if(first.type==='assistant'){ setAssistantId(first.id); setShowSearch(false); }
-                        if(first.type==='conversation'){ loadConversation(first.id); setShowSearch(false); }
-                        if(first.type==='web'){ window.open(`https://www.google.com/search?q=${encodeURIComponent(first.id)}`,'_blank'); setShowSearch(false); }
-                      }}}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setSelectedResultIndex(prev => Math.min(prev + 1, searchResults.length - 1));
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setSelectedResultIndex(prev => Math.max(prev - 1, 0));
+                        } else if (e.key === 'Enter' && searchResults[selectedResultIndex]) {
+                          e.preventDefault();
+                          const selected = searchResults[selectedResultIndex];
+                          if (selected.type === 'assistant') { 
+                            setAssistantId(selected.id); 
+                            setShowSearch(false); 
+                          }
+                          if (selected.type === 'conversation') { 
+                            loadConversation(selected.id); 
+                            setShowSearch(false); 
+                          }
+                          if (selected.type === 'web') { 
+                            window.open(`https://www.google.com/search?q=${encodeURIComponent(selected.id)}`, '_blank'); 
+                            setShowSearch(false); 
+                          }
+                        }
+                      }}
                     />
                     <Menu className="search-menu-icon" size={20} />
                   </div>
@@ -2131,11 +2148,6 @@ export default function Home() {
                   >
                     Aa Title only
                   </button>
-                  <button className="filter-btn">
-                    <User size={14} />
-                    Created by
-                    <ChevronDown size={14} />
-                  </button>
                   <button 
                     className={`filter-btn ${searchAssistant !== 'all' ? 'active' : ''}`}
                     onClick={() => {
@@ -2150,14 +2162,6 @@ export default function Home() {
                     Assistant {searchAssistant !== 'all' && `(${assistantCatalog.find(a => a.id === searchAssistant)?.name})`}
                     <ChevronDown size={14} />
                   </button>
-                  <button className="filter-btn">
-                    📄 In
-                    <ChevronDown size={14} />
-                  </button>
-                  <button className="filter-btn">
-                    📅 Date
-                    <ChevronDown size={14} />
-                  </button>
                 </div>
               </div>
 
@@ -2169,14 +2173,19 @@ export default function Home() {
                     <>
                       <div className="result-section-header">Today</div>
                       {searchResults.filter(r => r.type === 'assistant').map((r, idx)=>(
-                        <div key={idx} className="search-result-item" role="option" aria-selected={idx===0}
+                        <div 
+                          key={idx} 
+                          className={`search-result-item ${searchResults.indexOf(r) === selectedResultIndex ? 'selected' : ''}`} 
+                          role="option" 
+                          aria-selected={searchResults.indexOf(r) === selectedResultIndex}
                           onClick={(e) => {
                             e.stopPropagation();
+                            setSelectedResultIndex(searchResults.indexOf(r));
                             if(r.type==='assistant'){ setAssistantId(r.id); setShowSearch(false); }
                           }}
                         >
                           <div className="result-icon">
-                            {r.icon ? <img src={r.icon} alt="" className="w-5 h-5 rounded-full"/> : <Bot size={16} />}
+                            {r.icon ? <img src={r.icon} alt="" className="w-6 h-6 rounded-full"/> : <Bot size={16} />}
                           </div>
                           <div className="result-content">
                             <div className="result-title">{r.title}</div>
@@ -2188,6 +2197,7 @@ export default function Home() {
                               title="Select"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setSelectedResultIndex(searchResults.indexOf(r));
                                 if(r.type==='assistant'){ setAssistantId(r.id); setShowSearch(false); }
                               }}
                             >
@@ -2198,6 +2208,7 @@ export default function Home() {
                               title="Open"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setSelectedResultIndex(searchResults.indexOf(r));
                                 if(r.type==='assistant'){ setAssistantId(r.id); setShowSearch(false); }
                               }}
                             >
@@ -2237,9 +2248,14 @@ export default function Home() {
                     <>
                       <div className="result-section-header">Recent Conversations</div>
                       {searchResults.filter(r => r.type === 'conversation').map((r, idx)=>(
-                        <div key={idx} className="search-result-item" role="option" aria-selected={idx===0}
+                        <div 
+                          key={idx} 
+                          className={`search-result-item ${searchResults.indexOf(r) === selectedResultIndex ? 'selected' : ''}`} 
+                          role="option" 
+                          aria-selected={searchResults.indexOf(r) === selectedResultIndex}
                           onClick={(e) => {
                             e.stopPropagation();
+                            setSelectedResultIndex(searchResults.indexOf(r));
                             if(r.type==='conversation'){ loadConversation(r.id); setShowSearch(false); }
                           }}
                         >
@@ -2256,6 +2272,7 @@ export default function Home() {
                               title="Select"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setSelectedResultIndex(searchResults.indexOf(r));
                                 if(r.type==='conversation'){ loadConversation(r.id); setShowSearch(false); }
                               }}
                             >
@@ -2266,6 +2283,7 @@ export default function Home() {
                               title="Open"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setSelectedResultIndex(searchResults.indexOf(r));
                                 if(r.type==='conversation'){ loadConversation(r.id); setShowSearch(false); }
                               }}
                             >
@@ -2303,9 +2321,14 @@ export default function Home() {
                     <>
                       <div className="result-section-header">Web Search</div>
                       {searchResults.filter(r => r.type === 'web').map((r, idx)=>(
-                        <div key={idx} className="search-result-item" role="option" aria-selected={idx===0}
+                        <div 
+                          key={idx} 
+                          className={`search-result-item ${searchResults.indexOf(r) === selectedResultIndex ? 'selected' : ''}`} 
+                          role="option" 
+                          aria-selected={searchResults.indexOf(r) === selectedResultIndex}
                           onClick={(e) => {
                             e.stopPropagation();
+                            setSelectedResultIndex(searchResults.indexOf(r));
                             if(r.type==='web'){ window.open(`https://www.google.com/search?q=${encodeURIComponent(r.id)}`,'_blank'); setShowSearch(false); }
                           }}
                         >
@@ -2322,6 +2345,7 @@ export default function Home() {
                               title="Open"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setSelectedResultIndex(searchResults.indexOf(r));
                                 if(r.type==='web'){ 
                                   window.open(`https://www.google.com/search?q=${encodeURIComponent(r.id)}`,'_blank'); 
                                   setShowSearch(false); 

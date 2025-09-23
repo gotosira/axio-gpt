@@ -137,7 +137,8 @@
 }
 
 .search-result-item:hover,
-.search-result-item[aria-selected="true"] {
+.search-result-item[aria-selected="true"],
+.search-result-item.selected {
   background: #f9fafb;
   border-left-color: #3b82f6;
 }
