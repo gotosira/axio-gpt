@@ -2170,25 +2170,23 @@ export default function Home() {
               
               {/* Action Cards - Only show if suggestions are available */}
               {suggestions.length > 0 && (
-                <div className="w-full max-w-6xl mb-8 px-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {suggestions.map((suggestion, idx) => (
-                      <div key={idx} className="message-summary-card">
-                        <div className="message-card-header">
-                          <h3 className="message-card-title">{suggestion.title}</h3>
-                        </div>
-                        <div className="message-card-content">
-                          <p className="message-card-description">{suggestion.description}</p>
-                          <div className="message-card-link">
-                            <span className="message-card-icon">📎</span>
-                            <button className="message-card-link-text" onClick={() => handleSuggestionClick(suggestion.action)}>
-                              Try it
-                            </button>
-                          </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {suggestions.map((suggestion, idx) => (
+                    <div key={idx} className="message-summary-card">
+                      <div className="message-card-header">
+                        <h3 className="message-card-title">{suggestion.title}</h3>
+                      </div>
+                      <div className="message-card-content">
+                        <p className="message-card-description">{suggestion.description}</p>
+                        <div className="message-card-link">
+                          <span className="message-card-icon">📎</span>
+                          <button className="message-card-link-text" onClick={() => handleSuggestionClick(suggestion.action)}>
+                            Try it
+                          </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               )}
 
