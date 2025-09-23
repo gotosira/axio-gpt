@@ -116,6 +116,7 @@ export function SignUpForm({ onSwitchToSignIn, onSuccess }: SignUpFormProps) {
               type="password"
               required
               minLength={6}
+              autoComplete="new-password"
               value={formData.password}
               onChange={handleChange}
               placeholder="Enter your password"
@@ -130,6 +131,7 @@ export function SignUpForm({ onSwitchToSignIn, onSuccess }: SignUpFormProps) {
               type="password"
               required
               minLength={6}
+              autoComplete="new-password"
               value={formData.confirmPassword}
               onChange={handleChange}
               placeholder="Confirm your password"

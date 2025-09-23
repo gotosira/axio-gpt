@@ -90,6 +90,7 @@ export function SignInForm({ onSwitchToSignUp, onSuccess }: SignInFormProps) {
               name="password"
               type="password"
               required
+              autoComplete="current-password"
               value={formData.password}
               onChange={handleChange}
               placeholder="Enter your password"
