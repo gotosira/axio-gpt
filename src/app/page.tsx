@@ -174,7 +174,6 @@ export default function Home() {
   const { authenticate } = useGoogleDriveAuth();
   const [startingConversation, setStartingConversation] = useState(false);
   const [holdOnHome, setHoldOnHome] = useState(false);
-  const [introAnim, setIntroAnim] = useState<{ kind: 'babao' | 'deedee' | 'pungpung' | 'flowflow'; seed: number } | null>(null);
 
   // Mobile keyboard-safe viewport offset using VisualViewport API
   useEffect(() => {
@@ -1286,31 +1285,60 @@ export default function Home() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let frameScheduled = false;
-      let pendingFlush = "";
+      let pendingBuffer = "";
       let lastFlushTs = performance.now();
+      let lineBuffer = "";
+      
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
           if (loading) setLoading(false);
-          pendingFlush += chunk;
+          
+          pendingBuffer += chunk;
+          lineBuffer += chunk;
+          
+          // Process complete lines
+          const lines = lineBuffer.split('\n');
+          lineBuffer = lines.pop() || ""; // Keep the incomplete line in buffer
+          
           const now = performance.now();
-          const urgent = now - lastFlushTs > 120;
-          if (!frameScheduled || urgent) {
+          const urgent = now - lastFlushTs > 150; // Slightly longer delay for line-by-line
+          
+          if (lines.length > 0 && (!frameScheduled || urgent)) {
             frameScheduled = true;
             requestAnimationFrame(() => {
-              assistantText += pendingFlush;
-              pendingFlush = "";
-              frameScheduled = false;
-              setMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, content: assistantText } : m)));
-              bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-              lastFlushTs = performance.now();
+              // Add complete lines one by one with a small delay
+              let currentLineIndex = 0;
+              const addNextLine = () => {
+                if (currentLineIndex < lines.length) {
+                  const lineToAdd = lines[currentLineIndex] + (currentLineIndex < lines.length - 1 ? '\n' : '');
+                  assistantText += lineToAdd;
+                  setMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, content: assistantText } : m)));
+                  bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+                  currentLineIndex++;
+                  
+                  // Add a small delay between lines for better readability
+                  if (currentLineIndex < lines.length) {
+                    setTimeout(addNextLine, 50); // 50ms delay between lines
+                  } else {
+                    frameScheduled = false;
+                    lastFlushTs = performance.now();
+                  }
+                } else {
+                  frameScheduled = false;
+                  lastFlushTs = performance.now();
+                }
+              };
+              addNextLine();
             });
           }
         }
-        if (pendingFlush) {
-          assistantText += pendingFlush;
+        
+        // Process any remaining content
+        if (lineBuffer) {
+          assistantText += lineBuffer;
           setMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, content: assistantText } : m)));
         }
       } finally {
@@ -1890,10 +1918,6 @@ export default function Home() {
 
       {/* Main Content */}
       <div className={`flex-1 flex flex-col min-w-0 main-content ${sidebarOpen ? '' : 'sidebar-closed'} cascade cascade-2`}>
-        {/* Assistant Intro Animation Overlay */}
-        {introAnim && (
-          <AssistantIntro kind={introAnim.kind} seed={introAnim.seed} />
-        )}
         {/* Netflix-style Assistant Picker Modal */}
         {showAssistantPicker && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center" aria-modal="true" role="dialog">
@@ -1911,28 +1935,20 @@ export default function Home() {
                       playUiSound('select');
                       setAssistantId(a.code);
                       setShowAssistantPicker(false);
-                      const kind = a.name.toLowerCase().includes('babao') ? 'babao'
-                        : a.name.toLowerCase().includes('deedee') ? 'deedee'
-                        : a.name.toLowerCase().includes('pungpung') ? 'pungpung'
-                        : 'flowflow';
-                      setIntroAnim({ kind, seed: Math.floor(Math.random()*1000) });
                       const createdTitle = `New Chat with ${a.name}`;
-                      setTimeout(async () => {
-                        try {
-                          const resp = await fetch('/api/conversations', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ title: createdTitle, assistantId: a.code }),
-                          });
-                          if (resp.ok) {
-                            const conv = await resp.json();
-                            setCurrentConvId(conv.id);
-                            await loadConversations(a.code);
-                            await handleSend(undefined, `Hello, ${a.name}..`, conv.id, a.code);
-                          }
-                        } catch (e) {}
-                        setTimeout(() => setIntroAnim(null), 300);
-                      }, 1100);
+                      try {
+                        const resp = await fetch('/api/conversations', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ title: createdTitle, assistantId: a.code }),
+                        });
+                        if (resp.ok) {
+                          const conv = await resp.json();
+                          setCurrentConvId(conv.id);
+                          await loadConversations(a.code);
+                          await handleSend(undefined, `Hello, ${a.name}..`, conv.id, a.code);
+                        }
+                      } catch (e) {}
                     }}
                   >
                     <div className="assistant-avatar">
@@ -2309,64 +2325,5 @@ export default function Home() {
         />
       )}
     </CustomAuthWrapper>
-  );
-}
-
-function AssistantIntro({ kind, seed }: { kind: 'babao'|'deedee'|'pungpung'|'flowflow'; seed: number }) {
-  const ref = useRef<HTMLCanvasElement|null>(null);
-  useEffect(() => {
-    const canvas = ref.current; if (!canvas) return;
-    const ctx = canvas.getContext('2d'); if (!ctx) return;
-    let raf = 0; let t0 = performance.now();
-    const W = () => canvas.width = window.innerWidth;
-    const H = () => canvas.height = window.innerHeight;
-    W(); H();
-    const onRes = () => { W(); H(); };
-    window.addEventListener('resize', onRes);
-    const rnd = (n:number) => Math.sin(n*999+seed)*9999%1;
-    const N = 32;
-    const parts = new Array(N).fill(0).map((_,i)=>({
-      x: (rnd(i+1)+1)/2*canvas.width,
-      y: (rnd(i+2)+1)/2*canvas.height*0.6+canvas.height*0.2,
-      vx: (rnd(i+3)-0.5)*3,
-      vy: (rnd(i+4)-0.5)*3,
-      r: 8 + (rnd(i+5)+1)*8
-    }));
-    const color = kind==='babao' ? '#2B6CB0' : kind==='deedee' ? '#EA580C' : kind==='pungpung' ? '#6D28D9' : '#DB2777';
-    const shape = (p:{x:number;y:number;r:number}) => {
-      ctx.beginPath();
-      if (kind==='flowflow') {
-        // blobby circle
-        ctx.ellipse(p.x, p.y, p.r*1.3, p.r, (p.x+p.y)%1, 0, Math.PI*2);
-      } else {
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-      }
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.18;
-      ctx.fill();
-    };
-    const loop = () => {
-      const now = performance.now();
-      const dt = Math.min(32, now - t0) / 16.6; t0 = now;
-      ctx.clearRect(0,0,canvas.width, canvas.height);
-      parts.forEach(p=>{
-        // simple motion per kind
-        if (kind==='pungpung') { p.vy += 0.05; } // gravity for owls
-        if (kind==='babao' || kind==='deedee') { p.vx += (Math.random()-0.5)*0.2; p.vy += (Math.random()-0.5)*0.2; }
-        if (kind==='flowflow') { p.vx = Math.sin((p.y+now/200)/40)*2; }
-        p.x += p.vx*dt; p.y += p.vy*dt;
-        if (p.x < -50) p.x = canvas.width+50; if (p.x > canvas.width+50) p.x = -50;
-        if (p.y < -50) p.y = canvas.height+50; if (p.y > canvas.height+50) p.y = -50;
-        shape(p);
-      });
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', onRes); };
-  }, [kind, seed]);
-  return (
-    <div className="assistant-intro-overlay">
-      <canvas ref={ref} className="assistant-intro-canvas" />
-    </div>
   );
 }
