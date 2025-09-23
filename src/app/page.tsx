@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useSession, signIn, signOut } from "next-auth/react";
+// Custom auth - no longer using NextAuth
 import { Button } from "@/components/ui/button";
 import { Message } from "@/components/chat/Message";
 import { MessageActions } from "@/components/chat/MessageActions";
@@ -9,6 +9,7 @@ import { ContextMenu } from "@/components/chat/ContextMenu";
 import { GoogleDrivePicker, useGoogleDriveAuth } from "@/components/GoogleDrivePicker";
 import { Plus, Search, Mic, User, Settings, Menu, ChevronDown, LogOut, Bot } from "lucide-react";
 import { CustomAuthWrapper } from "@/components/auth/CustomAuthWrapper";
+import { CustomAuthModal } from "@/components/auth/CustomAuthModal";
 import { useTheme } from "@/components/ClientThemeProvider";
 
 type ChatMessage = { 
@@ -41,8 +42,43 @@ interface AttachmentFile {
 }
 
 export default function Home() {
-  const { data: session } = useSession();
+  const [user, setUser] = useState<{id: string; name: string; email: string; image?: string} | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const { theme, setTheme } = useTheme();
+
+  // Check authentication status
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  const checkAuthStatus = async () => {
+    try {
+      const response = await fetch("/api/auth/me");
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Auth check failed:", error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await fetch("/api/auth/signout", { method: "POST" });
+      setUser(null);
+      // Refresh the page or redirect to login
+      window.location.reload();
+    } catch (error) {
+      console.error("Sign out failed:", error);
+    }
+  };
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [allConversations, setAllConversations] = useState<Conversation[]>([]);
   const [showSearch, setShowSearch] = useState(false);
@@ -274,12 +310,12 @@ export default function Home() {
   // Load conversations and suggestions when user is authenticated
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    // Only load if session is fully loaded and user is authenticated
-    if (session?.user && 'id' in session.user && session.user.id) {
+    // Only load if user is authenticated
+    if (user?.id) {
       loadConversations(assistantId);
       loadSuggestions();
     }
-  }, [session?.user, assistantId]);
+  }, [user?.id, assistantId]);
 
   // Close plus menu when clicking outside
   useEffect(() => {
@@ -1800,35 +1836,35 @@ export default function Home() {
           </div>
           {/* Sidebar Footer (always at bottom) */}
           <div className="p-3 border-t border-light sidebar-footer bg-sidebar">
-            {session ? (
+            {user ? (
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden border border-[#a6b0bf] bg-[#f2f4f7]">
-                  {session.user?.image ? (
+                  {user.image ? (
                     <img 
-                      src={session.user.image as string}
-                      alt={session.user.name || "User"}
+                      src={user.image}
+                      alt={user.name || "User"}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        console.log('User avatar failed to load:', session.user?.image);
+                        console.log('User avatar failed to load:', user.image);
                         e.currentTarget.style.display = 'none';
                       }}
                     />
                   ) : (
                     <span className="text-[#344054] text-sm font-medium">
-                      {session.user?.name?.charAt(0) || "U"}
+                      {user.name?.charAt(0) || "U"}
                     </span>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate text-[#344054]">{session.user?.name || "User"}</div>
-                  <div className="text-xs text-[#8a95a8] truncate">{session.user?.email}</div>
+                  <div className="text-sm font-medium truncate text-[#344054]">{user.name || "User"}</div>
+                  <div className="text-xs text-[#8a95a8] truncate">{user.email}</div>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="text-[#8a95a8] hover:text-[#344054] p-1"
-                  onClick={() => signOut()}
+                  onClick={handleSignOut}
                   title="Sign out"
                 >
                   <LogOut size={16} />
@@ -1838,10 +1874,10 @@ export default function Home() {
               <Button
                 variant="ghost"
                 className="w-full justify-start text-[#344054] hover:bg-[#e4e7ec] h-8 text-sm font-medium"
-                onClick={() => signIn("google")}
+                onClick={() => setShowLoginModal(true)}
               >
                 <User size={16} className="mr-2" />
-                Sign in with Google
+                Sign In
               </Button>
             )}
           </div>
@@ -2242,6 +2278,18 @@ export default function Home() {
             ))}
     </div>
         </div>
+      )}
+
+      {/* Custom Auth Modal */}
+      {showLoginModal && (
+        <CustomAuthModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onSuccess={() => {
+            setShowLoginModal(false);
+            checkAuthStatus();
+          }}
+        />
       )}
 
       {/* Google Drive Picker */}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { verify } from "jsonwebtoken";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import OpenAI from "openai";
 
@@ -10,10 +10,17 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const session = (await getServerSession(authOptions as unknown as Record<string, unknown>)) as any;
-    if (!session?.user?.id) {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Verify token
+    const decoded = verify(token, process.env.NEXTAUTH_SECRET!) as {
+      userId: string;
+    };
 
     const { conversationId } = await request.json();
 
@@ -23,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     // Get the conversation with messages
     const conversation = await prisma.conversation.findFirst({
-      where: { id: conversationId, userId: session.user.id },
+      where: { id: conversationId, userId: decoded.userId },
       include: { messages: { orderBy: { createdAt: "asc" } } },
     });
 
