@@ -75,12 +75,9 @@ export function CustomAuthWrapper({ children }: CustomAuthWrapperProps) {
 
   return (
     <>
-      {/* Pass user and signOut to children via context or props */}
+      {/* Render children */}
       <div className="app-fade-wrapper">
-        {React.cloneElement(children as React.ReactElement, { 
-          user, 
-          signOut: handleSignOut 
-        })}
+        {children}
       </div>
       
       <CustomAuthModal 
