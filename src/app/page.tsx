@@ -2391,9 +2391,61 @@ export default function Home() {
                   <div className="suggestion-section">
                     <div className="suggestion-header">Quick Actions</div>
                     <div className="suggestion-grid">
-                      {["New chat with BaoBao","Find 'invoice' in chats","Upload a PDF","Switch to dark theme"].map((s,i)=>(
-                        <button key={i} className="suggestion-chip" onClick={()=> runSearch(s)}>{s}</button>
-                      ))}
+                      <button 
+                        className="suggestion-chip" 
+                        onClick={() => {
+                          // Find BaoBao assistant and switch to it
+                          const baoBaoAssistant = assistantCatalog.find(a => a.name.toLowerCase().includes('baobao'));
+                          if (baoBaoAssistant) {
+                            setAssistantId(baoBaoAssistant.id);
+                            setShowSearch(false);
+                          }
+                        }}
+                      >
+                        New chat with BaoBao
+                      </button>
+                      <button 
+                        className="suggestion-chip" 
+                        onClick={() => {
+                          runSearch('invoice');
+                        }}
+                      >
+                        Find 'invoice' in chats
+                      </button>
+                      <button 
+                        className="suggestion-chip" 
+                        onClick={() => {
+                          // Trigger file upload
+                          const fileInput = document.createElement('input');
+                          fileInput.type = 'file';
+                          fileInput.accept = '.pdf,.txt,.doc,.docx';
+                          fileInput.onchange = (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0];
+                            if (file) {
+                              // Handle file upload - you can implement file processing here
+                              console.log('File selected:', file.name);
+                              // For now, just close the search
+                              setShowSearch(false);
+                            }
+                          };
+                          fileInput.click();
+                        }}
+                      >
+                        Upload a PDF
+                      </button>
+                      <button 
+                        className="suggestion-chip" 
+                        onClick={() => {
+                          // Toggle theme
+                          const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+                          const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                          document.documentElement.setAttribute('data-theme', newTheme);
+                          localStorage.setItem('theme', newTheme);
+                          setShowSearch(false);
+                        }}
+                      >
+                        Switch to dark theme
+                      </button>
                     </div>
                   </div>
                 </div>
