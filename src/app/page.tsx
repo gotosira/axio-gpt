@@ -2050,46 +2050,177 @@ export default function Home() {
           <>
             <div className="kbar-overlay" onClick={() => setShowSearch(false)} />
             <div className="kbar-panel" role="dialog" aria-modal="true" aria-label="Search">
-              <input
-                autoFocus
-                className="kbar-input"
-                placeholder="Search everything…"
-                value={searchQuery}
-                onChange={(e)=> runSearch(e.target.value)}
-                onKeyDown={(e)=>{ if(e.key==='Enter' && searchResults[0]){
-                  const first = searchResults[0];
-                  if(first.type==='assistant'){ setAssistantId(first.id); setShowSearch(false); }
-                  if(first.type==='conversation'){ loadConversation(first.id); setShowSearch(false); }
-                  if(first.type==='web'){ window.open(`https://www.google.com/search?q=${encodeURIComponent(first.id)}`,'_blank'); setShowSearch(false); }
-                }}}
-              />
-              {(!searchQuery || searchResults.length===0) && (
-                <div className="kbar-suggestions">
-                  {["New chat with Babao","Find ‘invoice’ in chats","Upload a PDF","Theme: Dark"].map((s,i)=>(
-                    <button key={i} className="kbar-chip" onClick={()=> runSearch(s)}>{s}</button>
-                  ))}
+              {/* Search Header */}
+              <div className="search-header">
+                <div className="search-input-container">
+                  <div className="search-input-wrapper">
+                    <Search className="search-icon" size={20} />
+                    <input
+                      autoFocus
+                      className="search-input"
+                      placeholder="Search or ask a question in AXIO-GPT..."
+                      value={searchQuery}
+                      onChange={(e)=> runSearch(e.target.value)}
+                      onKeyDown={(e)=>{ if(e.key==='Enter' && searchResults[0]){
+                        const first = searchResults[0];
+                        if(first.type==='assistant'){ setAssistantId(first.id); setShowSearch(false); }
+                        if(first.type==='conversation'){ loadConversation(first.id); setShowSearch(false); }
+                        if(first.type==='web'){ window.open(`https://www.google.com/search?q=${encodeURIComponent(first.id)}`,'_blank'); setShowSearch(false); }
+                      }}}
+                    />
+                    <Menu className="search-menu-icon" size={20} />
+                  </div>
                 </div>
-              )}
+                
+                {/* Filter and Sort Options */}
+                <div className="search-filters">
+                  <button className="filter-btn">
+                    <ChevronDown size={14} />
+                    Sort
+                  </button>
+                  <button className="filter-btn">
+                    Aa Title only
+                  </button>
+                  <button className="filter-btn">
+                    <User size={14} />
+                    Created by
+                    <ChevronDown size={14} />
+                  </button>
+                  <button className="filter-btn">
+                    <Bot size={14} />
+                    Assistant
+                    <ChevronDown size={14} />
+                  </button>
+                  <button className="filter-btn">
+                    📄 In
+                    <ChevronDown size={14} />
+                  </button>
+                  <button className="filter-btn">
+                    📅 Date
+                    <ChevronDown size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Search Results */}
               {searchResults.length>0 && (
-                <div className="kbar-results" role="listbox" aria-label="Results">
-                  <div className="kbar-section">Results</div>
-                  {searchResults.map((r, idx)=>(
-                    <div key={idx} className="kbar-item" role="option" aria-selected={idx===0}
-                      onClick={()=>{
-                        if(r.type==='assistant'){ setAssistantId(r.id); setShowSearch(false); }
-                        if(r.type==='conversation'){ loadConversation(r.id); setShowSearch(false); }
-                        if(r.type==='web'){ window.open(`https://www.google.com/search?q=${encodeURIComponent(r.id)}`,'_blank'); setShowSearch(false); }
-                      }}
-                    >
-                      <div className="kbar-icon">
-                        {r.icon ? <img src={r.icon} alt="" className="w-5 h-5 rounded-full"/> : <Search size={16} />}
-                      </div>
-                      <div className="truncate">{r.title}</div>
-                      <div className="kbar-kbd">↩</div>
-                    </div>
-                  ))}
+                <div className="search-results" role="listbox" aria-label="Results">
+                  {/* Today Section */}
+                  {searchResults.filter(r => r.type === 'assistant').length > 0 && (
+                    <>
+                      <div className="result-section-header">Today</div>
+                      {searchResults.filter(r => r.type === 'assistant').map((r, idx)=>(
+                        <div key={idx} className="search-result-item" role="option" aria-selected={idx===0}
+                          onClick={()=>{
+                            if(r.type==='assistant'){ setAssistantId(r.id); setShowSearch(false); }
+                          }}
+                        >
+                          <div className="result-icon">
+                            {r.icon ? <img src={r.icon} alt="" className="w-5 h-5 rounded-full"/> : <Bot size={16} />}
+                          </div>
+                          <div className="result-content">
+                            <div className="result-title">{r.title}</div>
+                            <div className="result-meta">AI Assistant</div>
+                          </div>
+                          <div className="result-actions">
+                            <button className="action-btn" title="Select">↑↓</button>
+                            <button className="action-btn" title="Open">→</button>
+                            <button className="action-btn" title="Open in new tab">↗</button>
+                            <button className="action-btn" title="Copy link">🔗 L</button>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Conversations Section */}
+                  {searchResults.filter(r => r.type === 'conversation').length > 0 && (
+                    <>
+                      <div className="result-section-header">Recent Conversations</div>
+                      {searchResults.filter(r => r.type === 'conversation').map((r, idx)=>(
+                        <div key={idx} className="search-result-item" role="option" aria-selected={idx===0}
+                          onClick={()=>{
+                            if(r.type==='conversation'){ loadConversation(r.id); setShowSearch(false); }
+                          }}
+                        >
+                          <div className="result-icon">
+                            <Search size={16} />
+                          </div>
+                          <div className="result-content">
+                            <div className="result-title">{r.title}</div>
+                            <div className="result-meta">Conversation</div>
+                          </div>
+                          <div className="result-date">Today</div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Web Search Section */}
+                  {searchResults.filter(r => r.type === 'web').length > 0 && (
+                    <>
+                      <div className="result-section-header">Web Search</div>
+                      {searchResults.filter(r => r.type === 'web').map((r, idx)=>(
+                        <div key={idx} className="search-result-item" role="option" aria-selected={idx===0}
+                          onClick={()=>{
+                            if(r.type==='web'){ window.open(`https://www.google.com/search?q=${encodeURIComponent(r.id)}`,'_blank'); setShowSearch(false); }
+                          }}
+                        >
+                          <div className="result-icon">
+                            🌐
+                          </div>
+                          <div className="result-content">
+                            <div className="result-title">{r.title}</div>
+                            <div className="result-meta">Web Search</div>
+                          </div>
+                          <div className="result-actions">
+                            <button className="action-btn" title="Open">→</button>
+                            <button className="action-btn" title="Open in new tab">↗</button>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
+
+              {/* Suggestions when no search query */}
+              {(!searchQuery || searchResults.length===0) && (
+                <div className="search-suggestions">
+                  <div className="suggestion-section">
+                    <div className="suggestion-header">Quick Actions</div>
+                    <div className="suggestion-grid">
+                      {["New chat with BaoBao","Find 'invoice' in chats","Upload a PDF","Switch to dark theme"].map((s,i)=>(
+                        <button key={i} className="suggestion-chip" onClick={()=> runSearch(s)}>{s}</button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Keyboard Shortcuts Footer */}
+              <div className="search-footer">
+                <div className="shortcut-item">
+                  <span className="shortcut-key">↑↓</span>
+                  <span className="shortcut-text">Select</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-key">→</span>
+                  <span className="shortcut-text">Open</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-key">↗</span>
+                  <span className="shortcut-text">Open in new tab</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-key">🔗</span>
+                  <span className="shortcut-text">L Copy link</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-key">K</span>
+                  <span className="shortcut-text">Command Search</span>
+                </div>
+              </div>
             </div>
           </>
         )}
