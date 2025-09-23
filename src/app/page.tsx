@@ -4,7 +4,6 @@ import { createPortal } from "react-dom";
 // Custom auth - no longer using NextAuth
 import { Button } from "@/components/ui/button";
 import { Message } from "@/components/chat/Message";
-import { MessageActions } from "@/components/chat/MessageActions";
 import { ContextMenu } from "@/components/chat/ContextMenu";
 import { GoogleDrivePicker, useGoogleDriveAuth } from "@/components/GoogleDrivePicker";
 import { Plus, Search, Mic, User, Settings, Menu, ChevronDown, LogOut, Bot } from "lucide-react";
@@ -1708,14 +1707,69 @@ export default function Home() {
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
+                if (e.ctrlKey || e.metaKey) {
+                  // Ctrl+Enter or Cmd+Enter to send
+                  e.preventDefault();
+                  const value = (localInput || e.currentTarget.value || '').trim();
+                  if (value) {
+                    handleSend(e, value);
+                    const visibleInput = e.currentTarget as HTMLTextAreaElement;
+                    if (visibleInput) { visibleInput.value = ''; visibleInput.style.height = '24px'; }
+                    setLocalInput('');
+                    const body = (e.currentTarget as HTMLTextAreaElement).parentElement; if (body) body.classList.remove('clamped');
+                  }
+                }
+                // Regular Enter allows new lines (default behavior)
+              }
+            }}
+            onPaste={(e) => {
+              // Handle Excel/Google Sheets data formatting
+              const pastedText = e.clipboardData.getData('text');
+              
+              // Check if the pasted text looks like tabular data (contains tabs and newlines)
+              if (pastedText.includes('\t') && pastedText.includes('\n')) {
                 e.preventDefault();
-                const value = (localInput || e.currentTarget.value || '').trim();
-                if (value) {
-                  handleSend(e, value);
-                  const visibleInput = e.currentTarget as HTMLTextAreaElement;
-                  if (visibleInput) { visibleInput.value = ''; visibleInput.style.height = '24px'; }
-                  setLocalInput('');
-                  const body = (e.currentTarget as HTMLTextAreaElement).parentElement; if (body) body.classList.remove('clamped');
+                
+                // Parse the tabular data
+                const rows = pastedText.split('\n').filter(row => row.trim().length > 0);
+                if (rows.length > 1) {
+                  // Convert to markdown table
+                  const formattedTable = rows.map((row, index) => {
+                    const cells = row.split('\t').map(cell => cell.trim());
+                    return '| ' + cells.join(' | ') + ' |';
+                  }).join('\n');
+                  
+                  // Add markdown table header separator for rows after the first
+                  const tableWithSeparator = formattedTable.split('\n').map((row, index) => {
+                    if (index === 1) {
+                      const cellCount = (row.match(/\|/g) || []).length - 1;
+                      const separator = '|' + ' --- |'.repeat(cellCount);
+                      return row + '\n' + separator;
+                    }
+                    return row;
+                  }).join('\n');
+                  
+                  // Insert the formatted table into the input
+                  const textarea = e.currentTarget as HTMLTextAreaElement;
+                  const start = textarea.selectionStart || 0;
+                  const end = textarea.selectionEnd || 0;
+                  const currentValue = textarea.value;
+                  
+                  const newValue = currentValue.substring(0, start) + 
+                    '\n\n' + tableWithSeparator + '\n\n' + 
+                    currentValue.substring(end);
+                  
+                  textarea.value = newValue;
+                  setLocalInput(newValue);
+                  
+                  // Set cursor position after the table
+                  const newCursorPos = start + tableWithSeparator.length + 4;
+                  setTimeout(() => {
+                    textarea.setSelectionRange(newCursorPos, newCursorPos);
+                  }, 0);
+                } else {
+                  // Single row - just paste as is
+                  document.execCommand('insertText', false, pastedText);
                 }
               }
             }}
@@ -2727,9 +2781,6 @@ export default function Home() {
                             <div className="whitespace-pre-line">{attachmentContent}</div>
                           </div>
                         </div>
-                      )}
-                      {m.role === "assistant" && idx === messages.length - 1 && (
-                        <MessageActions text={m.content} onRegenerate={() => setInput(messages[messages.length - 2]?.content ?? "")} />
                       )}
     </div>
   );
