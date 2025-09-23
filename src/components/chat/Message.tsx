@@ -135,7 +135,31 @@ export function Message({
                           className="copy-btn"
                           onClick={async (event) => {
                             try {
-                              const textToCopy = String(children).replace(/\n$/, ''); // Remove trailing newline
+                              // Get the actual text content from the code element
+                              const codeElement = (event.target as HTMLElement).parentElement?.querySelector('code');
+                              let textToCopy = '';
+                              
+                              if (codeElement) {
+                                textToCopy = codeElement.textContent || codeElement.innerText || '';
+                              } else {
+                                // Fallback: try to extract from children
+                                const extractText = (element: any): string => {
+                                  if (typeof element === 'string') return element;
+                                  if (typeof element === 'number') return String(element);
+                                  if (Array.isArray(element)) {
+                                    return element.map(extractText).join('');
+                                  }
+                                  if (element && typeof element === 'object' && element.props) {
+                                    return extractText(element.props.children);
+                                  }
+                                  return '';
+                                };
+                                textToCopy = extractText(children);
+                              }
+                              
+                              // Clean up the text
+                              textToCopy = textToCopy.replace(/\n$/, ''); // Remove trailing newline
+                              
                               await navigator.clipboard.writeText(textToCopy);
                               
                               // Visual feedback
@@ -153,8 +177,9 @@ export function Message({
                             } catch (err) {
                               console.error('Failed to copy code:', err);
                               // Fallback for older browsers
+                              const codeElement = (event.target as HTMLElement).parentElement?.querySelector('code');
                               const textArea = document.createElement('textarea');
-                              textArea.value = String(children).replace(/\n$/, '');
+                              textArea.value = codeElement?.textContent || codeElement?.innerText || '';
                               document.body.appendChild(textArea);
                               textArea.select();
                               document.execCommand('copy');
