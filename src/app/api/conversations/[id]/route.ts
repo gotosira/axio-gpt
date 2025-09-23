@@ -108,10 +108,23 @@ export async function DELETE(
     };
 
     const { id } = await params;
-    await prisma.conversation.delete({
+    
+    // First verify the conversation belongs to the user
+    const conversation = await prisma.conversation.findFirst({
       where: {
         id,
         userId: decoded.userId,
+      },
+    });
+
+    if (!conversation) {
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    }
+
+    // Delete the conversation (this will cascade delete messages due to onDelete: Cascade)
+    await prisma.conversation.delete({
+      where: {
+        id,
       },
     });
 

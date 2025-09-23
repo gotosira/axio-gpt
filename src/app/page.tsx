@@ -1329,20 +1329,41 @@ export default function Home() {
 
   const deleteConversation = async (conversationId: string) => {
     try {
+      console.log('Deleting conversation:', conversationId);
       const response = await fetch(`/api/conversations/${conversationId}`, {
         method: "DELETE",
       });
       if (response.ok) {
+        console.log('Conversation deleted successfully');
         setConversations(prev => prev.filter(c => c.id !== conversationId));
+        
+        // Clear conversation cache for all assistants
+        setConversationCache(prev => {
+          const newCache = { ...prev };
+          Object.keys(newCache).forEach(assistantId => {
+            newCache[assistantId] = newCache[assistantId].filter(c => c.id !== conversationId);
+          });
+          return newCache;
+        });
+        
+        // Clear messages cache
+        setMessagesCache(prev => {
+          const newCache = { ...prev };
+          delete newCache[conversationId];
+          return newCache;
+        });
+        
         if (currentConvId === conversationId) {
           // Clear the current chat; do not auto-create a new conversation
           setCurrentConvId(undefined);
           setMessages([]);
           setCurrentConversationTitle('New Chat');
         }
+      } else {
+        console.error('Failed to delete conversation:', response.status, await response.text());
       }
     } catch (error) {
-      // Silently fail deleting conversation
+      console.error('Error deleting conversation:', error);
     }
   };
 
@@ -1502,14 +1523,22 @@ export default function Home() {
         });
         if (createResp.ok) {
           const created = await createResp.json();
+          console.log('Conversation created:', created);
           targetConversationId = created.id;
           setCurrentConvId(created.id);
-          // Refresh sidebar for the selected assistant
-          await loadConversations(assistantId);
+          // Refresh sidebar for the correct assistant and clear cache to force reload
+          setConversationCache(prev => {
+            const newCache = { ...prev };
+            delete newCache[conversationAssistantId];
+            return newCache;
+          });
+          await loadConversations(conversationAssistantId);
           // Smoothly scroll to chat area instead of navigating away
           requestAnimationFrame(() => {
             document.getElementById('chat-bottom-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'end' });
           });
+        } else {
+          console.error('Failed to create conversation:', createResp.status, await createResp.text());
         }
       } catch (err) {
         // Silently fail creating conversation before send
