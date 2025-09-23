@@ -98,7 +98,7 @@ export function AssistantWelcome({ assistantId, onSuggestionClick }: AssistantWe
       </div>
 
       {/* Model Info */}
-      {assistant.model && (
+      {'model' in assistant && assistant.model && (
         <div className="flex items-center gap-1 text-gray-600 mb-6">
           <span className="text-sm">✓ Using the creator's recommended model: {assistant.model}</span>
         </div>
