@@ -1327,6 +1327,11 @@ export default function Home() {
     const chosenAssistantId = overrideAssistantId || convoAssistantId || assistantId;
     const assistantIdForRequest = overrideAssistantId ?? (useAssistant ? chosenAssistantId : undefined);
 
+    // Check if this is FlowFlow and user is requesting image generation
+    const isFlowFlow = chosenAssistantId === 'asst_4nCaYlt7AA5Ro4pseDCTbKHO'; // FlowFlow's assistant ID
+    const imageGenerationKeywords = /(สร้างรูป|สร้างภาพ|generate image|mockup|ui concept|wireframe|prototype|design concept|sketch|draw|วาด|ร่าง|ดีไซน์|mock up)/i;
+    const isImageRequest = isFlowFlow && imageGenerationKeywords.test(baseText);
+
     // Build attachments payload for server-side fetching/parsing
     const attachmentsPayload = attachments
       .map((a) => {
@@ -1374,6 +1379,77 @@ export default function Home() {
       content: "",
       thoughtProcess
     }]);
+
+    // Handle image generation for FlowFlow
+    if (isImageRequest) {
+      try {
+        // Extract image generation prompt from user input
+        const imagePrompt = baseText.replace(imageGenerationKeywords, '').trim();
+        const enhancedPrompt = `UI/UX design mockup, ${imagePrompt}, professional design, clean interface, modern style, high quality`;
+        
+        const imageResponse = await fetch('/api/openai/generate-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            prompt: enhancedPrompt,
+            size: '1024x1024',
+            quality: 'hd',
+            style: 'vivid'
+          })
+        });
+
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          const imageContent = `🎨 **Generated UI/UX Design Mockup**\n\n${imageData.revisedPrompt}\n\n![Generated Design](${imageData.imageUrl})`;
+          
+          setMessages((prev) => prev.map(m => 
+            m.id === assistantMsgId 
+              ? { ...m, content: imageContent, thoughtProcess: { ...m.thoughtProcess, isComplete: true } as ChatMessage['thoughtProcess'] }
+              : m
+          ));
+
+          // Save the assistant message with image
+          if (stableConvId) {
+            try {
+              await fetch("/api/chat/save-message", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  role: "assistant",
+                  content: imageContent,
+                  conversationId: stableConvId,
+                }),
+              });
+            } catch (error) {
+              console.error('Error saving image message:', error);
+            }
+          }
+
+          setLoading(false);
+          return;
+        } else {
+          const errorData = await imageResponse.json();
+          const errorMessage = `❌ ไม่สามารถสร้างภาพได้: ${errorData.error || 'เกิดข้อผิดพลาด'}`;
+          setMessages((prev) => prev.map(m => 
+            m.id === assistantMsgId 
+              ? { ...m, content: errorMessage, thoughtProcess: { ...m.thoughtProcess, isComplete: true } as ChatMessage['thoughtProcess'] }
+              : m
+          ));
+          setLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Image generation error:', error);
+        const errorMessage = `❌ เกิดข้อผิดพลาดในการสร้างภาพ: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        setMessages((prev) => prev.map(m => 
+          m.id === assistantMsgId 
+            ? { ...m, content: errorMessage, thoughtProcess: { ...m.thoughtProcess, isComplete: true } as ChatMessage['thoughtProcess'] }
+            : m
+        ));
+        setLoading(false);
+        return;
+      }
+    }
 
     if (ct.includes('application/json')) {
       const data = await res.json().catch(() => ({} as any));
