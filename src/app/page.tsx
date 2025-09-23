@@ -113,6 +113,8 @@ export default function Home() {
   };
 
   const showNotification = async (title: string, body: string, icon?: string) => {
+    console.log('Attempting to show notification:', { title, body, isTabFocused, notificationPermission });
+    
     if (!isTabFocused && notificationPermission === 'granted') {
       try {
         const notification = new Notification(title, {
@@ -123,6 +125,8 @@ export default function Home() {
           requireInteraction: false,
           silent: false
         });
+
+        console.log('Notification shown successfully');
 
         // Auto-close notification after 5 seconds
         setTimeout(() => {
@@ -139,7 +143,10 @@ export default function Home() {
       }
     } else if (!isTabFocused) {
       // Store pending notification if permission not granted
+      console.log('Storing pending notification:', { title, body });
       setPendingNotification({ title, body, icon });
+    } else {
+      console.log('Tab is focused, not showing notification');
     }
   };
 
@@ -1335,9 +1342,11 @@ export default function Home() {
       });
       if (response.ok) {
         console.log('Conversation deleted successfully');
+        
+        // Remove from current conversations list immediately
         setConversations(prev => prev.filter(c => c.id !== conversationId));
         
-        // Clear conversation cache for all assistants
+        // Clear conversation cache for ALL assistants immediately
         setConversationCache(prev => {
           const newCache = { ...prev };
           Object.keys(newCache).forEach(assistantId => {
@@ -1359,6 +1368,11 @@ export default function Home() {
           setMessages([]);
           setCurrentConversationTitle('New Chat');
         }
+        
+        // Force refresh all assistant conversations to ensure consistency
+        Object.keys(conversationCache).forEach(assistantId => {
+          loadConversations(assistantId);
+        });
       } else {
         console.error('Failed to delete conversation:', response.status, await response.text());
       }
@@ -1514,6 +1528,10 @@ export default function Home() {
         } else if (betaMode && !assistantId) {
           provisionalTitle = 'New Chat (Beta)';
           conversationAssistantId = 'beta';
+        } else if (assistantId) {
+          // Generate proper title with assistant name
+          const assistantName = getAssistantName(assistantId);
+          provisionalTitle = `New Chat with ${assistantName}`;
         }
         
         const createResp = await fetch("/api/conversations", {
@@ -1526,14 +1544,22 @@ export default function Home() {
           console.log('Conversation created:', created);
           targetConversationId = created.id;
           setCurrentConvId(created.id);
-          // Refresh sidebar for the correct assistant and clear cache to force reload
+          setCurrentConversationTitle(provisionalTitle);
+          
+          // Immediately add to sidebar without waiting for API reload
+          setConversations(prev => [created, ...prev]);
+          
+          // Also update cache immediately
           if (conversationAssistantId) {
-            setConversationCache(prev => {
-              const newCache = { ...prev };
-              delete newCache[conversationAssistantId];
-              return newCache;
-            });
-            await loadConversations(conversationAssistantId);
+            setConversationCache(prev => ({
+              ...prev,
+              [conversationAssistantId]: [created, ...(prev[conversationAssistantId] || [])]
+            }));
+          }
+          
+          // Background refresh to ensure consistency
+          if (conversationAssistantId) {
+            loadConversations(conversationAssistantId);
           }
           // Smoothly scroll to chat area instead of navigating away
           requestAnimationFrame(() => {
@@ -1917,6 +1943,15 @@ export default function Home() {
           setMessages(prev => prev.map(msg => msg.id === assistantMsgId ? { ...msg, id: savedMessage.id } : msg));
           if (savedMessage.id !== assistantMsgId) {
             setMessageFeedbacks(prev => { const ns = { ...prev }; if (prev[assistantMsgId] !== undefined) { ns[savedMessage.id] = prev[assistantMsgId]; delete ns[assistantMsgId]; } return ns; });
+          }
+          
+          // Refresh conversations if title was updated
+          if (savedMessage.conversationTitle) {
+            setCurrentConversationTitle(savedMessage.conversationTitle);
+            // Refresh sidebar to show updated title
+            if (assistantId) {
+              loadConversations(assistantId);
+            }
           }
           notifyAssistantReply(assistantById(assistantId)?.name, assistantText);
           playUiSound('done');
@@ -2323,6 +2358,9 @@ export default function Home() {
                       // Show immediate feedback if cached, otherwise show loading
                       if (conversationCache[a.code]) {
                         setConversations(conversationCache[a.code]);
+                      } else {
+                        // Clear current conversations while loading
+                        setConversations([]);
                       }
                       await loadConversations(a.code);
                     }}
@@ -3103,6 +3141,16 @@ export default function Home() {
                   <span className="text-xs text-gray-500">
                     {notificationPermission === 'granted' ? 'Enabled' : 'Disabled'}
                   </span>
+                </button>
+                <button
+                  className="w-full text-left px-3 py-2 text-sm flex items-center justify-between"
+                  onClick={() => {
+                    showNotification('Test Notification', 'This is a test notification to verify the system is working!');
+                    (document.getElementById('settings-theme-menu') as HTMLElement)?.classList.add('hidden');
+                  }}
+                >
+                  <span>🧪 Test Notification</span>
+                  <span className="text-xs text-gray-500">Click to test</span>
                 </button>
                 <button
                   className="w-full text-left px-3 py-2 text-sm flex items-center justify-between"
