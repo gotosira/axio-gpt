@@ -8,7 +8,7 @@ import { MessageActions } from "@/components/chat/MessageActions";
 import { ContextMenu } from "@/components/chat/ContextMenu";
 import { GoogleDrivePicker, useGoogleDriveAuth } from "@/components/GoogleDrivePicker";
 import { Plus, Search, Mic, User, Settings, Menu, ChevronDown, LogOut, Bot } from "lucide-react";
-import { AuthWrapper } from "@/components/auth/AuthWrapper";
+import { CustomAuthWrapper } from "@/components/auth/CustomAuthWrapper";
 import { useTheme } from "@/components/ClientThemeProvider";
 
 type ChatMessage = { 
@@ -1555,7 +1555,7 @@ export default function Home() {
   ); };
 
   return (
-    <AuthWrapper>
+    <CustomAuthWrapper>
       <div className={`min-h-screen flex app-container`}>
       {/* Sidebar */}
       <div className={`sidebar ${sidebarOpen ? '' : 'closed'} transition-transform duration-300 border-r cascade cascade-1`}>
@@ -2251,7 +2251,7 @@ export default function Home() {
           onClose={() => setShowGoogleDrivePicker(false)}
         />
       )}
-    </AuthWrapper>
+    </CustomAuthWrapper>
   );
 }
 
