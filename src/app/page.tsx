@@ -1527,12 +1527,14 @@ export default function Home() {
           targetConversationId = created.id;
           setCurrentConvId(created.id);
           // Refresh sidebar for the correct assistant and clear cache to force reload
-          setConversationCache(prev => {
-            const newCache = { ...prev };
-            delete newCache[conversationAssistantId];
-            return newCache;
-          });
-          await loadConversations(conversationAssistantId);
+          if (conversationAssistantId) {
+            setConversationCache(prev => {
+              const newCache = { ...prev };
+              delete newCache[conversationAssistantId];
+              return newCache;
+            });
+            await loadConversations(conversationAssistantId);
+          }
           // Smoothly scroll to chat area instead of navigating away
           requestAnimationFrame(() => {
             document.getElementById('chat-bottom-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'end' });
