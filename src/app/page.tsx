@@ -81,16 +81,10 @@ export default function Home() {
     }
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-    // Set the input value to the suggestion
-    setInput(suggestion);
-    // Focus the input field
-    setTimeout(() => {
-      const inputElement = document.querySelector('textarea[placeholder*="Ask another question"]') as HTMLTextAreaElement;
-      if (inputElement) {
-        inputElement.focus();
-      }
-    }, 100);
+  const handleSuggestionClick = async (suggestion: string) => {
+    // Clear the input and send the suggestion immediately
+    setInput('');
+    await handleSend(undefined, suggestion);
   };
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [allConversations, setAllConversations] = useState<Conversation[]>([]);
