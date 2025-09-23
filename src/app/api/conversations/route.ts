@@ -1,41 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { verify } from "jsonwebtoken";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = (await getServerSession(authOptions as unknown as Record<string, unknown>)) as any;
-    if (!session?.user?.id) {
+    const cookieStore = cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Verify token
+    const decoded = verify(token, process.env.NEXTAUTH_SECRET!) as {
+      userId: string;
+    };
 
     const { searchParams } = new URL(request.url);
     const assistantId = searchParams.get("assistantId") || undefined;
 
-    // Relax typing here to avoid Prisma generic inference issues in strict builds
-    let whereClause: any = { userId: session.user.id };
+    // Build where clause with enhanced filtering
+    let whereClause: any = { 
+      userId: decoded.userId,
+      isArchived: false // Only show non-archived conversations by default
+    };
+    
     if (assistantId) {
       if (assistantId === 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0') {
         // For Babao, also include legacy conversations with null assistantId
         whereClause = {
-          AND: [
-            { userId: session.user.id },
-            { OR: [ { assistantId }, { assistantId: null } ] },
-          ],
+          ...whereClause,
+          OR: [ { assistantId }, { assistantId: null } ],
         };
       } else {
-        whereClause = { userId: session.user.id, assistantId };
+        whereClause.assistantId = assistantId;
       }
     }
 
     const conversations = await prisma.conversation.findMany({
       where: whereClause,
-      orderBy: { updatedAt: "desc" },
+      orderBy: [
+        { isPinned: "desc" },
+        { lastMessageAt: "desc" }
+      ],
       include: {
         messages: {
           orderBy: [{ createdAt: "asc" }],
+          take: 1, // Only get the first message for preview
         },
+        _count: {
+          select: { messages: true }
+        }
       },
     });
 
@@ -53,18 +69,28 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = (await getServerSession(authOptions as unknown as Record<string, unknown>)) as any;
-    if (!session?.user?.id) {
+    const cookieStore = cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { title, assistantId } = await request.json();
+    // Verify token
+    const decoded = verify(token, process.env.NEXTAUTH_SECRET!) as {
+      userId: string;
+    };
+
+    const { title, assistantId, settings, tags } = await request.json();
 
     const conversation = await prisma.conversation.create({
       data: {
         title: title || "New Chat",
-        userId: session.user.id,
+        userId: decoded.userId,
         assistantId,
+        settings,
+        tags: tags || [],
+        lastMessageAt: new Date(),
       },
     });
 

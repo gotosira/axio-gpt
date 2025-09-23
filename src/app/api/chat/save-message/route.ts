@@ -1,16 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { verify } from "jsonwebtoken";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = (await getServerSession(authOptions as unknown as Record<string, unknown>)) as any;
-    if (!session?.user?.id) {
+    const cookieStore = cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { role, content, conversationId, shouldRename } = await request.json();
+    // Verify token
+    const decoded = verify(token, process.env.NEXTAUTH_SECRET!) as {
+      userId: string;
+    };
+
+    const { 
+      role, 
+      content, 
+      conversationId, 
+      shouldRename, 
+      attachments, 
+      metadata, 
+      tokens 
+    } = await request.json();
 
     if (!role || !content || !conversationId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -33,6 +48,19 @@ export async function POST(request: NextRequest) {
           role,
           content,
           conversationId,
+          attachments,
+          metadata,
+          tokens,
+        },
+      });
+
+      // Update conversation message count and last message time
+      await prisma.conversation.update({
+        where: { id: conversationId },
+        data: {
+          messageCount: { increment: 1 },
+          lastMessageAt: new Date(),
+          updatedAt: new Date(),
         },
       });
     } else {
@@ -43,7 +71,7 @@ export async function POST(request: NextRequest) {
     if (role === "assistant" && shouldRename) {
       // Generate a better title based on the conversation content
       const conversation = await prisma.conversation.findFirst({
-        where: { id: conversationId, userId: session.user.id },
+        where: { id: conversationId, userId: decoded.userId },
         include: { messages: { orderBy: { createdAt: "asc" } } },
       });
 

@@ -41,11 +41,13 @@ model User {
   id            String    @id @default(cuid())
   name          String?
   email         String?   @unique
+  password      String?   // For custom auth
   emailVerified DateTime?
   image         String?
   accounts      Account[]
   sessions      Session[]
   conversations Conversation[]
+  settings      UserSettings?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -59,14 +61,20 @@ model VerificationToken {
 }
 
 model Conversation {
-  id        String   @id @default(cuid())
-  title     String
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages  Message[]
-  assistantId String?  // Which assistant this conversation belongs to
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  title         String
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages      Message[]
+  assistantId   String?  // Which assistant this conversation belongs to
+  isArchived    Boolean  @default(false)
+  isPinned      Boolean  @default(false)
+  lastMessageAt DateTime @default(now())
+  messageCount  Int      @default(0)
+  settings      Json?    // Store conversation-specific settings
+  tags          String[] // Tags for organization
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Message {
@@ -79,5 +87,46 @@ model Message {
   parentId       String?      // For reply functionality
   parent         Message?     @relation("MessageReplies", fields: [parentId], references: [id])
   replies        Message[]    @relation("MessageReplies")
+  attachments    Json?        // Store file attachments info
+  metadata       Json?        // Additional message metadata
+  tokens         Int?         // Token count for cost tracking
   createdAt      DateTime     @default(now())
+}
+
+model UserSettings {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Chat preferences
+  defaultAssistant      String?  @default("bao-bao")
+  chatTheme            String?  @default("light")
+  fontSize             String?  @default("medium")
+  autoSaveConversations Boolean @default(true)
+  
+  // Notification settings
+  emailNotifications    Boolean @default(true)
+  pushNotifications     Boolean @default(true)
+  messageSound          Boolean @default(true)
+  
+  // Privacy settings
+  shareUsageData        Boolean @default(false)
+  allowAnalytics        Boolean @default(true)
+  
+  // Advanced settings
+  maxTokensPerMessage   Int?    @default(4000)
+  temperature          Float?  @default(0.7)
+  systemPrompt         String?
+  
+  // UI preferences
+  sidebarCollapsed     Boolean @default(false)
+  showTokenCount       Boolean @default(false)
+  compactMode          Boolean @default(false)
+  
+  // Storage settings
+  autoArchiveDays      Int?    @default(30)
+  maxConversations     Int?    @default(100)
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }
