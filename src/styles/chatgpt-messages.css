@@ -1,0 +1,494 @@
+/*
+  ChatGPT Markdown/Text Response — Complete CSS Styling Kit
+  Author: ChatGPT
+  Scope: Styles common rich-text/markdown structures you see in LLM/chat outputs
+  How to use:
+    Wrap your rendered message in a container, e.g. <article class="chatgpt-msg"> ... </article>
+    Then include this stylesheet. Adjust CSS variables to theme.
+*/
+
+/* =========================
+   1) THEME TOKENS
+   ========================= */
+:root {
+  /* palette */
+  --bg: #ffffff;
+  --surface: #fafafa;
+  --text: #111827;        /* gray-900 */
+  --muted: #6b7280;       /* gray-500 */
+  --border: #e5e7eb;      /* gray-200 */
+  --link: #2563eb;        /* blue-600 */
+  --link-visited: #7c3aed;/* violet-600 */
+  --accent: #0ea5e9;      /* sky-500 */
+
+  /* code */
+  --code-bg: #0b1020;
+  --code-text: #e2e8f0;
+  --code-border: #1f2937;
+  --inline-code-bg: #f3f4f6;
+  --inline-code-text: #111827;
+
+  /* callouts */
+  --info-bg: #eff6ff;
+  --info-border: #93c5fd;
+  --info-text: #1e40af;
+
+  --success-bg: #ecfdf5;
+  --success-border: #86efac;
+  --success-text: #065f46;
+
+  --warning-bg: #fffbeb;
+  --warning-border: #fde68a;
+  --warning-text: #92400e;
+
+  --danger-bg: #fef2f2;
+  --danger-border: #fecaca;
+  --danger-text: #7f1d1d;
+
+  --tip-bg: #f5f3ff;
+  --tip-border: #c4b5fd;
+  --tip-text: #4c1d95;
+
+  /* misc */
+  --kbd-bg: #111827;
+  --kbd-text: #f9fafb;
+  --selection: #fde68a;
+  --table-stripe: #f9fafb;
+  --shadow: 0 1px 2px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.06);
+
+  /* rhythm */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+  --pad: 1rem;
+  --pad-sm: .675rem;
+  --pad-xs: .4rem;
+  --lh: 1.65;
+  --maxw: 72ch;
+}
+
+/* Auto dark mode (or set [data-theme="dark"] on <html>) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0f16;
+    --surface: #0f1623;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --border: #1f2937;
+    --link: #60a5fa;
+    --link-visited: #c084fc;
+
+    --code-bg: #0a0f1a;
+    --code-text: #e5e7eb;
+    --code-border: #0b1220;
+    --inline-code-bg: #111827;
+    --inline-code-text: #e5e7eb;
+
+    --table-stripe: #0f172a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.35);
+  }
+}
+
+html[data-theme="dark"] :root {
+  /* enable manual dark mode by setting data-theme="dark" */
+}
+
+::selection { background: var(--selection); }
+
+/* =========================
+   2) CONTAINER & TYPOGRAPHY
+   ========================= */
+.chatgpt-msg {
+  color: var(--text);
+  background: var(--bg);
+  line-height: var(--lh);
+  font-feature-settings: "ss01","ss02","cv01";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  max-width: var(--maxw);
+}
+
+.chatgpt-msg > *:first-child { margin-top: 0; }
+.chatgpt-msg > *:last-child  { margin-bottom: 0; }
+
+.chatgpt-msg p { margin: 0 0 1em; }
+.chatgpt-msg .lead { font-size: 1.15rem; color: var(--muted); }
+.chatgpt-msg .muted { color: var(--muted); }
+.chatgpt-msg .small { font-size: .925rem; }
+
+/* =========================
+   3) HEADINGS
+   ========================= */
+.chatgpt-msg h1,
+.chatgpt-msg h2,
+.chatgpt-msg h3,
+.chatgpt-msg h4,
+.chatgpt-msg h5,
+.chatgpt-msg h6 {
+  line-height: 1.25;
+  margin: 1.5em 0 .5em;
+  font-weight: 750;
+}
+.chatgpt-msg h1 { font-size: clamp(1.8rem, 3vw, 2.2rem); }
+.chatgpt-msg h2 { font-size: clamp(1.5rem, 2.5vw, 1.9rem); }
+.chatgpt-msg h3 { font-size: clamp(1.3rem, 2vw, 1.5rem); }
+.chatgpt-msg h4 { font-size: 1.15rem; }
+.chatgpt-msg h5 { font-size: 1.05rem; }
+.chatgpt-msg h6 { font-size: .95rem; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
+
+/* Anchor headings */
+.chatgpt-msg .heading-anchor { opacity: 0; margin-left: .4em; text-decoration: none; }
+.chatgpt-msg h2:hover .heading-anchor,
+.chatgpt-msg h3:hover .heading-anchor,
+.chatgpt-msg h4:hover .heading-anchor { opacity: .6; }
+
+/* =========================
+   4) LINKS
+   ========================= */
+.chatgpt-msg a { color: var(--link); text-decoration: underline; text-underline-offset: 3px; }
+.chatgpt-msg a:visited { color: var(--link-visited); }
+.chatgpt-msg a:hover { text-decoration-thickness: 2px; }
+
+/* =========================
+   5) LISTS
+   ========================= */
+.chatgpt-msg ul,
+.chatgpt-msg ol { margin: 0 0 1em 1.25em; }
+.chatgpt-msg li { margin: .3em 0; }
+.chatgpt-msg li::marker { color: var(--muted); }
+.chatgpt-msg ul ul,
+.chatgpt-msg ol ol,
+.chatgpt-msg ul ol,
+.chatgpt-msg ol ul { margin-bottom: 0; }
+
+/* Task lists (GitHub-flavored) */
+.chatgpt-msg input[type="checkbox"] { margin-right: .5em; accent-color: var(--accent); }
+.chatgpt-msg .task-list-item { list-style: none; margin-left: 0; }
+
+/* =========================
+   6) BLOCKQUOTES
+   ========================= */
+.chatgpt-msg blockquote {
+  margin: 1em 0;
+  padding: .75rem 1rem;
+  background: var(--surface);
+  border-left: 4px solid var(--border);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  color: var(--muted);
+}
+.chatgpt-msg blockquote > :first-child { margin-top: 0; }
+.chatgpt-msg blockquote > :last-child { margin-bottom: 0; }
+
+/* =========================
+   7) CODE & PRE
+   ========================= */
+.chatgpt-msg code {
+  background: var(--inline-code-bg);
+  color: var(--inline-code-text);
+  padding: .15em .375em;
+  border-radius: var(--radius-xs);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: .95em;
+}
+
+.chatgpt-msg pre {
+  background: var(--code-bg);
+  color: var(--code-text);
+  border: 1px solid var(--code-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1rem 1.25rem;
+  overflow: auto;
+  margin: 1em 0 1.25em;
+}
+.chatgpt-msg pre code { background: transparent; color: inherit; padding: 0; font-size: .95em; }
+
+/* code block header (optional) */
+.chatgpt-msg .codeblock {
+  position: relative;
+}
+.chatgpt-msg .codeblock .label {
+  position: absolute; top: .5rem; right: .75rem;
+  font-size: .75rem; color: #93c5fd; letter-spacing: .02em;
+}
+.chatgpt-msg .copy-btn {
+  position: absolute; top: .5rem; right: .75rem; transform: translateY(150%);
+  background: rgba(255,255,255,.06); border: 1px solid var(--code-border);
+  color: var(--code-text); border-radius: var(--radius-xs); padding: .25rem .5rem; cursor: pointer;
+}
+
+/* line numbers (toggle .has-line-numbers on pre) */
+.chatgpt-msg pre.has-line-numbers {
+  counter-reset: ln;
+}
+.chatgpt-msg pre.has-line-numbers code { display: grid; }
+.chatgpt-msg pre.has-line-numbers code > span { counter-increment: ln; padding-left: .75rem; }
+.chatgpt-msg pre.has-line-numbers code > span::before {
+  content: counter(ln);
+  display: inline-block; width: 2ch; margin-right: 1rem; color: #9ca3af;
+}
+
+/* =========================
+   8) TABLES
+   ========================= */
+.chatgpt-msg table {
+  width: 100%; border-collapse: collapse; margin: 1em 0; overflow: hidden;
+  border-radius: var(--radius);
+}
+.chatgpt-msg th,
+.chatgpt-msg td {
+  border: 1px solid var(--border); padding: .6rem .7rem; text-align: left; vertical-align: top;
+}
+.chatgpt-msg thead th { background: var(--surface); font-weight: 700; }
+.chatgpt-msg tbody tr:nth-child(odd) { background: var(--table-stripe); }
+.chatgpt-msg caption { caption-side: bottom; padding: .5rem; color: var(--muted); font-size: .9em; }
+
+/* Responsive tables */
+@media (max-width: 640px) {
+  .chatgpt-msg table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+
+/* =========================
+   9) MEDIA (img, figure)
+   ========================= */
+.chatgpt-msg img,
+.chatgpt-msg video,
+.chatgpt-msg canvas {
+  max-width: 100%; height: auto; border-radius: var(--radius);
+}
+.chatgpt-msg figure { margin: 1em 0; }
+.chatgpt-msg figcaption { text-align: center; color: var(--muted); font-size: .9em; margin-top: .4rem; }
+
+/* =========================
+   10) HORIZONTAL RULE
+   ========================= */
+.chatgpt-msg hr {
+  border: 0; border-top: 1px dashed var(--border); margin: 1.5em 0;
+}
+
+/* =========================
+   11) CALLOUTS / ADMONITIONS
+   Use: <div class="callout info|success|warning|danger|tip"> ... </div>
+   ========================= */
+.callout {
+  border-left: 4px solid var(--border);
+  padding: .85rem 1rem;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface);
+  margin: 1em 0;
+}
+.callout > :first-child { margin-top: 0; }
+.callout > :last-child { margin-bottom: 0; }
+.callout .title { font-weight: 700; margin-bottom: .35rem; }
+
+.callout.info { background: var(--info-bg); border-color: var(--info-border); color: var(--info-text); }
+.callout.success { background: var(--success-bg); border-color: var(--success-border); color: var(--success-text); }
+.callout.warning { background: var(--warning-bg); border-color: var(--warning-border); color: var(--warning-text); }
+.callout.danger { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger-text); }
+.callout.tip { background: var(--tip-bg); border-color: var(--tip-border); color: var(--tip-text); }
+
+/* =========================
+   12) DETAILS / SUMMARY & SPOILERS
+   ========================= */
+.chatgpt-msg details {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: .5rem .75rem; margin: 1em 0; box-shadow: var(--shadow);
+}
+.chatgpt-msg summary { cursor: pointer; font-weight: 600; }
+.chatgpt-msg .spoiler { filter: blur(6px); transition: filter .2s ease; }
+.chatgpt-msg .spoiler.revealed { filter: none; }
+
+/* =========================
+   13) SUP/ SUB/ FOOTNOTES
+   ========================= */
+.chatgpt-msg sup, .chatgpt-msg sub { font-size: .8em; }
+.chatgpt-msg .footnotes { font-size: .95em; color: var(--muted); }
+.chatgpt-msg .footnotes hr { margin: .75em 0; }
+
+/* =========================
+   14) BADGES / PILLS / TAGS
+   ========================= */
+.badge,
+.pill {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .2rem .55rem; border-radius: 999px; font-size: .85em;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+}
+.badge .dot { width: .5rem; height: .5rem; border-radius: 999px; background: var(--accent); display: inline-block; }
+
+/* =========================
+   15) KBD (keyboard keys)
+   ========================= */
+.chatgpt-msg kbd {
+  background: var(--kbd-bg); color: var(--kbd-text); border-radius: var(--radius-xs);
+  padding: .15rem .4rem; font-size: .85em; box-shadow: inset 0 -2px 0 rgba(255,255,255,0.1);
+}
+
+/* =========================
+   16) ALIGNMENT HELPERS
+   ========================= */
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+
+/* =========================
+   17) QUOTES (inline smart)
+   ========================= */
+.chatgpt-msg q { quotes: "\201C" "\201D" "\2018" "\2019"; }
+
+/* =========================
+   18) MATH (KaTeX baseline tweaks)
+   ========================= */
+.katex-display { overflow-x: auto; padding: .4rem 0; }
+
+/* =========================
+   19) INLINE ALERT TOKENS
+   ========================= */
+.token-danger { color: #dc2626; }
+.token-warning { color: #d97706; }
+.token-success { color: #059669; }
+.token-info { color: #2563eb; }
+
+/* =========================
+   20) QUOTED ASSISTANT/USER BUBBLES (optional)
+   ========================= */
+.chat-bubble {
+  background: var(--surface); border: 1px solid var(--border); border-radius: calc(var(--radius) + 6px);
+  padding: var(--pad); margin: 1em 0; box-shadow: var(--shadow);
+}
+.chat-bubble.user { border-top-right-radius: var(--radius-xs); }
+.chat-bubble.assistant { border-top-left-radius: var(--radius-xs); }
+
+/* =========================
+   21) PRINT SUPPORT
+   ========================= */
+@media print {
+  .chatgpt-msg { max-width: none; }
+  .chatgpt-msg a { color: black; text-decoration: none; }
+  .chatgpt-msg pre { page-break-inside: avoid; }
+}
+
+/* =========================
+   22) UTILITIES
+   ========================= */
+.mt-0{margin-top:0}.mb-0{margin-bottom:0}.mt-1{margin-top:.25rem}.mb-1{margin-bottom:.25rem}.mt-2{margin-top:.5rem}.mb-2{margin-bottom:.5rem}.mt-3{margin-top:1rem}.mb-3{margin-bottom:1rem}
+.p-0{padding:0}.p-1{padding:.25rem}.p-2{padding:.5rem}.p-3{padding:1rem}
+.rounded{border-radius:var(--radius)}.rounded-sm{border-radius:var(--radius-sm)}.rounded-xs{border-radius:var(--radius-xs)}
+
+/* =========================
+   23) MARKDOWN EDGE CASES
+   ========================= */
+.chatgpt-msg del { text-decoration: line-through; text-decoration-thickness: 2px; }
+.chatgpt-msg ins { text-decoration: underline; text-decoration-thickness: 2px; }
+.chatgpt-msg mark { background: #fef08a; padding: 0 .2em; border-radius: 3px; }
+
+/* =========================
+   24) QUOTE CARDS (for citations)
+   ========================= */
+.cite-card {
+  border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius);
+  padding: .8rem; box-shadow: var(--shadow); display: grid; gap: .4rem; margin: 1em 0;
+}
+.cite-card .source { font-weight: 600; }
+.cite-card .meta { color: var(--muted); font-size: .9em; }
+
+/* =========================
+   25) CHAT MESSAGE SPECIFIC STYLING
+   ========================= */
+.message-content {
+  /* Reset any existing styles and apply ChatGPT styling */
+  all: unset;
+  display: block;
+}
+
+.message-content.chatgpt-msg {
+  /* Ensure the message content uses ChatGPT styling */
+  color: var(--text);
+  background: transparent;
+  line-height: var(--lh);
+  font-feature-settings: "ss01","ss02","cv01";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  max-width: var(--maxw);
+}
+
+/* Override any conflicting message styles */
+.message-content.chatgpt-msg * {
+  box-sizing: border-box;
+}
+
+/* Ensure proper spacing for message content */
+.message-content.chatgpt-msg > *:first-child { margin-top: 0; }
+.message-content.chatgpt-msg > *:last-child { margin-bottom: 0; }
+
+/* =========================
+   26) CHAT BUBBLE INTEGRATION
+   ========================= */
+/* Ensure ChatGPT styling works within chat bubbles */
+.chat-message-bubble .chatgpt-msg {
+  /* Override max-width to fit within chat bubble */
+  max-width: none;
+  /* Ensure proper text color inheritance */
+  color: inherit;
+}
+
+/* Adjust code blocks within chat bubbles */
+.chat-message-bubble .chatgpt-msg pre {
+  margin: 0.75em 0;
+  font-size: 0.9em;
+}
+
+/* Adjust tables within chat bubbles */
+.chat-message-bubble .chatgpt-msg table {
+  margin: 0.75em 0;
+  font-size: 0.9em;
+}
+
+/* Adjust headings within chat bubbles */
+.chat-message-bubble .chatgpt-msg h1,
+.chat-message-bubble .chatgpt-msg h2,
+.chat-message-bubble .chatgpt-msg h3,
+.chat-message-bubble .chatgpt-msg h4,
+.chat-message-bubble .chatgpt-msg h5,
+.chat-message-bubble .chatgpt-msg h6 {
+  margin: 1em 0 0.5em;
+}
+
+/* Ensure blockquotes look good in chat bubbles */
+.chat-message-bubble .chatgpt-msg blockquote {
+  margin: 0.75em 0;
+  font-size: 0.95em;
+}
+
+/* Copy button styling improvements */
+.chat-message-bubble .chatgpt-msg .copy-btn {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.chat-message-bubble .chatgpt-msg .codeblock:hover .copy-btn {
+  opacity: 1;
+}
+
+.chat-message-bubble .chatgpt-msg .copy-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* Dark mode adjustments for chat bubbles */
+@media (prefers-color-scheme: dark) {
+  .chat-message-bubble .chatgpt-msg {
+    color: var(--text);
+  }
+  
+  .chat-message-bubble .chatgpt-msg pre {
+    background: var(--code-bg);
+    border-color: var(--code-border);
+  }
+  
+  .chat-message-bubble .chatgpt-msg code {
+    background: var(--inline-code-bg);
+    color: var(--inline-code-text);
+  }
+}

@@ -1,3 +1,6 @@
+/* Import ChatGPT Message Styling */
+@import '../styles/chatgpt-messages.css';
+
 /* Universal Search Modal */
 .kbar-overlay { position: fixed; inset: 0; background: rgba(2,6,23,0.55); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); z-index: 200; }
 .kbar-panel { position: fixed; top: 12vh; left: 50%; transform: translateX(-50%); width: min(760px, 92vw); background: var(--bg-primary); border: 1px solid var(--border-light); border-radius: 14px; box-shadow: 0 30px 80px rgba(16,24,40,0.25), 0 6px 20px rgba(16,24,40,0.18); z-index: 201; overflow: hidden; }

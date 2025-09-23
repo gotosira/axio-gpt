@@ -102,70 +102,98 @@ export function Message({
                 </ul>
               </div>
             )}
-            <ReactMarkdown 
-              remarkPlugins={[remarkGfm, remarkMath]} 
-              rehypePlugins={[rehypeHighlight, rehypeKatex]}
-              components={{
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                code: ({ className, children, ...props }: any) => {
-                  const match = /language-(\w+)/.exec(className || '');
-                  return !props.inline && match ? (
-                    <pre className="msg-codeblock">
-                      <code className={className} {...props}>
+            <article className="chatgpt-msg">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm, remarkMath]} 
+                rehypePlugins={[rehypeHighlight, rehypeKatex]}
+                components={{
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  code: ({ className, children, ...props }: any) => {
+                    const match = /language-(\w+)/.exec(className || '');
+                    return !props.inline && match ? (
+                      <pre className="codeblock">
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                        <button 
+                          className="copy-btn"
+                          onClick={() => {
+                            navigator.clipboard.writeText(String(children));
+                          }}
+                          title="Copy code"
+                        >
+                          Copy
+                        </button>
+                      </pre>
+                    ) : (
+                      <code {...props}>
                         {children}
                       </code>
-                    </pre>
-                  ) : (
-                    <code className="msg-inline-code" {...props}>
+                    );
+                  },
+                  pre: ({ children }) => <>{children}</>,
+                  p: ({ children }) => <p>{children}</p>,
+                  ul: ({ children }) => <ul>{children}</ul>,
+                  ol: ({ children }) => <ol>{children}</ol>,
+                  h1: ({ children }) => <h1>{children}</h1>,
+                  h2: ({ children }) => <h2>{children}</h2>,
+                  h3: ({ children }) => <h3>{children}</h3>,
+                  h4: ({ children }) => <h4>{children}</h4>,
+                  h5: ({ children }) => <h5>{children}</h5>,
+                  h6: ({ children }) => <h6>{children}</h6>,
+                  blockquote: ({ children }) => (
+                    <blockquote>
                       {children}
-                    </code>
-                  );
-                },
-                pre: ({ children }) => <>{children}</>,
-                p: ({ children }) => <p className="msg-p">{children}</p>,
-                ul: ({ children }) => <ul className="msg-ul">{children}</ul>,
-                ol: ({ children }) => <ol className="msg-ol">{children}</ol>,
-                // Do not override <li> to avoid listitem warnings
-                // li: ({ children }) => <li className="msg-li">{children}</li>,
-                h1: ({ children }) => <h1 className="msg-h1">{children}</h1>,
-                h2: ({ children }) => <h2 className="msg-h2">{children}</h2>,
-                h3: ({ children }) => <h3 className="msg-h3">{children}</h3>,
-                blockquote: ({ children }) => (
-                  <blockquote className="msg-quote">
-                    {children}
-                  </blockquote>
-                ),
-                table: ({ children }) => (
-                  <div className="msg-table-wrap">
-                    <table className="msg-table">
+                    </blockquote>
+                  ),
+                  table: ({ children }) => (
+                    <table>
                       {children}
                     </table>
-                  </div>
-                ),
-                thead: ({ children }) => (
-                  <thead className="msg-thead">
-                    {children}
-                  </thead>
-                ),
-                th: ({ children }) => (
-                  <th className="msg-th">
-                    {children}
-                  </th>
-                ),
-                td: ({ children }) => (
-                  <td className="msg-td">
-                    {children}
-                  </td>
-                ),
-                tr: ({ children }) => (
-                  <tr className="msg-tr">
-                    {children}
-                  </tr>
-                ),
-              }}
-            >
-              {content}
-            </ReactMarkdown>
+                  ),
+                  thead: ({ children }) => (
+                    <thead>
+                      {children}
+                    </thead>
+                  ),
+                  tbody: ({ children }) => (
+                    <tbody>
+                      {children}
+                    </tbody>
+                  ),
+                  th: ({ children }) => (
+                    <th>
+                      {children}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td>
+                      {children}
+                    </td>
+                  ),
+                  tr: ({ children }) => (
+                    <tr>
+                      {children}
+                    </tr>
+                  ),
+                  hr: () => <hr />,
+                  a: ({ children, href, ...props }) => (
+                    <a href={href} {...props}>
+                      {children}
+                    </a>
+                  ),
+                  strong: ({ children }) => <strong>{children}</strong>,
+                  em: ({ children }) => <em>{children}</em>,
+                  del: ({ children }) => <del>{children}</del>,
+                  ins: ({ children }) => <ins>{children}</ins>,
+                  mark: ({ children }) => <mark>{children}</mark>,
+                  details: ({ children }) => <details>{children}</details>,
+                  summary: ({ children }) => <summary>{children}</summary>,
+                }}
+              >
+                {content}
+              </ReactMarkdown>
+            </article>
             
             {/* Feedback buttons for assistant messages */}
             {role === 'assistant' && (
