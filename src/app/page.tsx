@@ -501,13 +501,6 @@ export default function Home() {
     } catch {}
   }, []);
 
-  // Desktop browser notifications for assistant replies
-  const requestNotificationPermission = useCallback(async () => {
-    if (typeof window === 'undefined' || !("Notification" in window)) return;
-    if (Notification.permission === 'default') {
-      try { await Notification.requestPermission(); } catch {}
-    }
-  }, []);
 
   const notifyAssistantReply = useCallback((assistantName: string | undefined, text: string) => {
     if (typeof window === 'undefined' || !("Notification" in window)) return;
