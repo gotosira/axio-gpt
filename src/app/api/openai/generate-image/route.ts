@@ -57,10 +57,10 @@ export async function POST(request: NextRequest) {
       n: 1,
     });
 
-    const imageUrl = response.data[0]?.url;
-    const revisedPrompt = response.data[0]?.revised_prompt;
+    const imageUrl = response.data?.[0]?.url;
+    const revisedPrompt = response.data?.[0]?.revised_prompt;
 
-    if (!imageUrl) {
+    if (!imageUrl || !response.data || response.data.length === 0) {
       return NextResponse.json({ error: 'Failed to generate image' }, { status: 500 });
     }
 
