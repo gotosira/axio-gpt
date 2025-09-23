@@ -114,35 +114,42 @@ export function AssistantWelcome({ assistantId, onSuggestionClick }: AssistantWe
         {assistant.description}
       </div>
 
-      {/* Suggestions */}
-      <div className="grid gap-3 w-full max-w-4xl">
-        {assistant.suggestions.map((suggestion, index) => (
-          <div key={index} className="flex justify-center">
-            {typeof suggestion === 'string' ? (
-              <Button
-                variant="outline"
-                className="w-full max-w-md h-auto p-4 text-left justify-start border-gray-200 hover:border-blue-300 hover:bg-blue-50"
-                onClick={() => onSuggestionClick(suggestion)}
-              >
-                <span className="text-sm">{suggestion}</span>
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                className="w-full max-w-md h-auto p-4 text-left justify-start border-gray-200 hover:border-blue-300 hover:bg-blue-50"
-                onClick={() => onSuggestionClick(`${suggestion.text} ${suggestion.subtext}`)}
-              >
-                <div className="flex items-center gap-3 w-full">
-                  <span className="text-2xl">{suggestion.icon}</span>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{suggestion.text}</span>
-                    <span className="text-xs text-gray-600">{suggestion.subtext}</span>
-                  </div>
-                </div>
-              </Button>
-            )}
+      {/* Suggestions - Horizontal Layout */}
+      <div className="w-full max-w-6xl">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
+            คำแนะนำสำหรับเริ่มต้น
+          </h3>
+          <div className="flex flex-wrap gap-3 justify-center">
+            {assistant.suggestions.map((suggestion, index) => (
+              <div key={index} className="flex-shrink-0">
+                {typeof suggestion === 'string' ? (
+                  <Button
+                    variant="outline"
+                    className="h-auto p-3 text-left justify-start border-gray-200 hover:border-blue-300 hover:bg-blue-50 whitespace-normal"
+                    onClick={() => onSuggestionClick(suggestion)}
+                  >
+                    <span className="text-sm max-w-xs">{suggestion}</span>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="h-auto p-3 text-left justify-start border-gray-200 hover:border-blue-300 hover:bg-blue-50"
+                    onClick={() => onSuggestionClick(`${suggestion.text} ${suggestion.subtext}`)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{suggestion.icon}</span>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{suggestion.text}</span>
+                        <span className="text-xs text-gray-600">{suggestion.subtext}</span>
+                      </div>
+                    </div>
+                  </Button>
+                )}
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );
