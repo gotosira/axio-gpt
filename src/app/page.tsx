@@ -91,6 +91,67 @@ export default function Home() {
     await handleSend(undefined, suggestion);
   };
 
+  // Intent detection for AI routing in beta mode
+  const detectAssistantIntent = (userInput: string): string | null => {
+    const input = userInput.toLowerCase();
+    
+    // Check for manual slash commands first
+    if (input.startsWith('/deedee') || input.startsWith('/research')) {
+      return 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0'; // DeeDee
+    }
+    if (input.startsWith('/baobao') || input.startsWith('/translate') || input.startsWith('/content')) {
+      return 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0'; // BaoBao
+    }
+    if (input.startsWith('/pungpung') || input.startsWith('/analysis') || input.startsWith('/feedback')) {
+      return 'asst_Pi6FrBRHRpvhwSOIryJvDo3T'; // PungPung
+    }
+    if (input.startsWith('/flowflow') || input.startsWith('/design') || input.startsWith('/ui') || input.startsWith('/ux')) {
+      return 'asst_4nCaYlt7AA5Ro4pseDCTbKHO'; // FlowFlow
+    }
+    
+    // UX Research & Research keywords
+    const researchKeywords = [
+      'ux research', 'user research', 'research', 'วิจัย', 'การวิจัย', 'ผู้ใช้', 'user interview',
+      'survey', 'questionnaire', 'focus group', 'usability testing', 'a/b test', 'ab test',
+      'user persona', 'user journey', 'user story', 'research method', 'research plan'
+    ];
+    if (researchKeywords.some(keyword => input.includes(keyword))) {
+      return 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0'; // DeeDee
+    }
+    
+    // Content & Translation keywords (BaoBao)
+    const contentKeywords = [
+      'translate', 'แปล', 'ภาษา', 'content', 'ข้อความ', 'คำอธิบาย', 'ระบบ', 'เกษตรกร',
+      'farmer', 'back office', 'frontline', 'specialist', 'ผู้เชี่ยวชาญ', 'ทีมหลังบ้าน', 'ทีมหน้าบ้าน',
+      'message', 'notification', 'alert', 'warning', 'error', 'success', 'button', 'label'
+    ];
+    if (contentKeywords.some(keyword => input.includes(keyword))) {
+      return 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0'; // BaoBao
+    }
+    
+    // Data Analysis & Feedback keywords (PungPung)
+    const analysisKeywords = [
+      'feedback', 'csat', 'score', 'analysis', 'analyze', 'สรุป', 'วิเคราะห์', 'ข้อมูล',
+      'data', 'report', 'dashboard', 'metric', 'kpi', 'satisfaction', 'rating', 'review',
+      'product feedback', 'customer feedback', 'user feedback', 'nps', 'survey result'
+    ];
+    if (analysisKeywords.some(keyword => input.includes(keyword))) {
+      return 'asst_Pi6FrBRHRpvhwSOIryJvDo3T'; // PungPung
+    }
+    
+    // Design & UX/UI keywords (FlowFlow)
+    const designKeywords = [
+      'design', 'ui', 'ux', 'interface', 'mockup', 'prototype', 'wireframe', 'design system',
+      'component', 'style guide', 'color', 'typography', 'layout', 'responsive', 'mobile',
+      'ออกแบบ', 'ดีไซน์', 'หน้าจอ', 'ปุ่ม', 'สี', 'ฟอนต์', 'layout', 'component'
+    ];
+    if (designKeywords.some(keyword => input.includes(keyword))) {
+      return 'asst_4nCaYlt7AA5Ro4pseDCTbKHO'; // FlowFlow
+    }
+    
+    return null; // No specific intent detected
+  };
+
   // Generate thought process based on assistant and user input
   const generateThoughtProcess = (assistantId: string, userInput: string) => {
     const assistantThoughts = {
@@ -159,6 +220,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [responseId, setResponseId] = useState<string | undefined>(undefined);
   const [assistantId, setAssistantId] = useState<string | undefined>(process.env.NEXT_PUBLIC_ASSISTANT_ID as string | undefined);
+  const [betaMode, setBetaMode] = useState<boolean>(false);
+  const [detectedAssistant, setDetectedAssistant] = useState<string | null>(null);
   const babaoAvatar = process.env.NEXT_PUBLIC_AVATAR_BABAO ?? '/avatars/BaoBao.jpeg';
   const deedeeAvatar = process.env.NEXT_PUBLIC_AVATAR_DEEDEE ?? '/avatars/DeeDee.png';
   const pungpungAvatar = process.env.NEXT_PUBLIC_AVATAR_PUNGPUNG ?? '/avatars/PungPung.png';
@@ -1377,7 +1440,18 @@ export default function Home() {
       ? conversations.find(c => c.id === targetConversationId)?.assistantId
       : undefined;
     const chosenAssistantId = overrideAssistantId || convoAssistantId || assistantId;
-    const assistantIdForRequest = overrideAssistantId ?? (useAssistant ? chosenAssistantId : undefined);
+    
+    // In beta mode, detect intent and route to appropriate assistant
+    let finalAssistantId = chosenAssistantId;
+    if (betaMode && !overrideAssistantId && !convoAssistantId) {
+      const detectedIntent = detectAssistantIntent(baseText);
+      if (detectedIntent) {
+        finalAssistantId = detectedIntent;
+        setDetectedAssistant(detectedIntent);
+      }
+    }
+    
+    const assistantIdForRequest = overrideAssistantId ?? (useAssistant ? finalAssistantId : undefined);
 
     // Check if this is FlowFlow and user is requesting image generation
     const isFlowFlow = chosenAssistantId === 'asst_4nCaYlt7AA5Ro4pseDCTbKHO'; // FlowFlow's assistant ID
@@ -1902,6 +1976,22 @@ export default function Home() {
               >
                 <span className="plus-menu-icon">📁</span>
                 <span>Add from Google Drive</span>
+              </button>
+              <button 
+                className="plus-menu-item"
+                onClick={() => {
+                  setBetaMode(true);
+                  setAssistantId(undefined);
+                  setCurrentConvId(undefined);
+                  setMessages([]);
+                  setCurrentConversationTitle('New Chat (Beta)');
+                  setDetectedAssistant(null);
+                  setShowPlusMenu(false);
+                }}
+              >
+                <span className="plus-menu-icon">🚀</span>
+                <span>New Chat (Beta)</span>
+                <span className="plus-menu-badge">AI ROUTER</span>
               </button>
               <div className="plus-menu-divider"></div>
               <button className="plus-menu-item" onClick={() => setShowPlusMenu(false)}>
@@ -2731,6 +2821,20 @@ export default function Home() {
             </Button>
             <div className="flex items-center gap-2">
               <span className="text-[#f5fafe] font-semibold text-lg">{currentConversationTitle}</span>
+              {betaMode && (
+                <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-1 rounded-full">
+                  <span className="text-white text-xs font-medium">🚀 BETA</span>
+                </div>
+              )}
+              {detectedAssistant && betaMode && (
+                <div className="bg-blue-500 px-2 py-1 rounded-full">
+                  <span className="text-white text-xs font-medium">
+                    {detectedAssistant === 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0' ? '🔬 DeeDee' :
+                     detectedAssistant === 'asst_Pi6FrBRHRpvhwSOIryJvDo3T' ? '📊 PungPung' :
+                     detectedAssistant === 'asst_4nCaYlt7AA5Ro4pseDCTbKHO' ? '🎨 FlowFlow' : '🍼 BaoBao'}
+                  </span>
+                </div>
+              )}
               <div className="bg-[#07a721] px-2 py-1 rounded-full">
                 <span className="text-[#f9fbf9] text-sm font-medium">Online</span>
               </div>
@@ -2786,7 +2890,82 @@ export default function Home() {
         <div className="flex-1 flex flex-col">
           {messages.length === 0 ? (
             <div className="flex-1 flex flex-col">
-              {assistantId && (
+              {betaMode && !assistantId ? (
+                <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 py-12">
+                  <div className="w-24 h-24 rounded-full mb-6 overflow-hidden border-2 border-purple-200 dark:border-purple-700 shadow-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                    <span className="text-4xl">🚀</span>
+                  </div>
+                  
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                    New Chat (Beta)
+                  </h1>
+                  
+                  <div className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4 text-center">
+                    AI Router - เลือก AI ที่เหมาะสมโดยอัตโนมัติ
+                  </div>
+                  
+                  <div className="text-gray-700 dark:text-gray-300 mb-8 max-w-2xl text-center leading-relaxed">
+                    ระบบจะช่วยวิเคราะห์คำถามของคุณและเรียกใช้ AI ที่เหมาะสมที่สุด<br/>
+                    หรือใช้คำสั่ง / เพื่อเลือก AI เองได้เลย!
+                  </div>
+                  
+                  <div className="w-full max-w-6xl">
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 text-center">
+                        คำสั่ง / สำหรับเลือก AI
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <span className="text-2xl">🔬</span>
+                            <div>
+                              <div className="font-medium text-blue-900 dark:text-blue-100">/deedee</div>
+                              <div className="text-sm text-blue-700 dark:text-blue-300">UX Research & การวิจัย</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                            <span className="text-2xl">🍼</span>
+                            <div>
+                              <div className="font-medium text-green-900 dark:text-green-100">/baobao</div>
+                              <div className="text-sm text-green-700 dark:text-green-300">แปลภาษา & ข้อความ</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                            <span className="text-2xl">📊</span>
+                            <div>
+                              <div className="font-medium text-orange-900 dark:text-orange-100">/pungpung</div>
+                              <div className="text-sm text-orange-700 dark:text-orange-300">วิเคราะห์ข้อมูล & Feedback</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                            <span className="text-2xl">🎨</span>
+                            <div>
+                              <div className="font-medium text-purple-900 dark:text-purple-100">/flowflow</div>
+                              <div className="text-sm text-purple-700 dark:text-purple-300">UX/UI Design & ออกแบบ</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-6 text-center">
+                        <button
+                          onClick={() => {
+                            setBetaMode(false);
+                            setAssistantId(process.env.NEXT_PUBLIC_ASSISTANT_ID as string | undefined);
+                            setCurrentConversationTitle('New Chat');
+                            setDetectedAssistant(null);
+                          }}
+                          className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
+                        >
+                          ออกจากโหมด Beta
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : assistantId && (
                 <AssistantWelcome 
                   assistantId={assistantId} 
                   onSuggestionClick={handleSuggestionClick}
