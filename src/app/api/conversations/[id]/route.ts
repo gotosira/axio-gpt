@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { verify } from "jsonwebtoken";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 
 export async function GET(
@@ -8,16 +8,23 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = (await getServerSession(authOptions as unknown as Record<string, unknown>)) as any;
-    if (!session?.user?.id) {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Verify token
+    const decoded = verify(token, process.env.NEXTAUTH_SECRET!) as {
+      userId: string;
+    };
 
     const { id } = await params;
     const conversation = await prisma.conversation.findFirst({
       where: {
         id,
-        userId: session.user.id,
+        userId: decoded.userId,
       },
       include: {
         messages: {
@@ -46,17 +53,24 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = (await getServerSession(authOptions as unknown as Record<string, unknown>)) as any;
-    if (!session?.user?.id) {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Verify token
+    const decoded = verify(token, process.env.NEXTAUTH_SECRET!) as {
+      userId: string;
+    };
 
     const { id } = await params;
     const { title } = await request.json();
 
     // Use updateMany to safely scope by userId (update requires unique selector)
     const result = await prisma.conversation.updateMany({
-      where: { id, userId: session.user.id },
+      where: { id, userId: decoded.userId },
       data: { title },
     });
 
@@ -81,16 +95,23 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = (await getServerSession(authOptions as unknown as Record<string, unknown>)) as any;
-    if (!session?.user?.id) {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Verify token
+    const decoded = verify(token, process.env.NEXTAUTH_SECRET!) as {
+      userId: string;
+    };
 
     const { id } = await params;
     await prisma.conversation.delete({
       where: {
         id,
-        userId: session.user.id,
+        userId: decoded.userId,
       },
     });
 
