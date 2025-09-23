@@ -247,7 +247,10 @@ export default function Home() {
         e.preventDefault();
         setShowSearch(true);
       }
-      if (e.key === 'Escape') setShowSearch(false);
+      if (e.key === 'Escape') {
+        setShowSearch(false);
+        setShowAssistantPicker(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -2028,9 +2031,9 @@ export default function Home() {
       <div className={`flex-1 flex flex-col min-w-0 main-content ${sidebarOpen ? '' : 'sidebar-closed'} cascade cascade-2`}>
         {/* Netflix-style Assistant Picker Modal */}
         {showAssistantPicker && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center" aria-modal="true" role="dialog">
-            <div className="absolute inset-0 modal-backdrop" onClick={() => setShowAssistantPicker(false)} />
-            <div className="relative z-[101] w-full h-full flex flex-col items-center justify-center p-6">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" aria-modal="true" role="dialog">
+            <div className="absolute inset-0" onClick={() => setShowAssistantPicker(false)} />
+            <div className="relative z-[101] w-full max-w-4xl h-full max-h-[80vh] flex flex-col items-center justify-center p-6">
               <div className="assistant-picker-title">Who&apos;s chatting?</div>
               <div className="assistant-picker-grid">
                 {assistantCatalog.map((a) => (
