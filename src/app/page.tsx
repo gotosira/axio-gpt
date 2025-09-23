@@ -3128,29 +3128,91 @@ export default function Home() {
                 <button
                   className="w-full text-left px-3 py-2 text-sm flex items-center justify-between"
                   onClick={async () => {
+                    console.log('Current notification permission:', notificationPermission);
+                    console.log('Browser supports notifications:', 'Notification' in window);
+                    
                     const granted = await requestNotificationPermission();
+                    console.log('Permission request result:', granted);
+                    
                     if (granted) {
-                      alert('Notifications enabled! You will receive alerts when AI responses are complete.');
+                      alert('Notifications enabled! You will receive alerts when AI responses are complete.\n\nCurrent permission status: ' + Notification.permission);
                     } else {
-                      alert('Notifications were denied. You can enable them in your browser settings.');
+                      alert('Notifications were denied or not supported.\n\nCurrent permission status: ' + Notification.permission + '\n\nYou can enable them in your browser settings.');
                     }
                     (document.getElementById('settings-theme-menu') as HTMLElement)?.classList.add('hidden');
                   }}
                 >
                   <span>🔔 Notifications</span>
                   <span className="text-xs text-gray-500">
-                    {notificationPermission === 'granted' ? 'Enabled' : 'Disabled'}
+                    {notificationPermission === 'granted' ? 'Enabled' : notificationPermission === 'denied' ? 'Denied' : 'Not Set'}
                   </span>
                 </button>
                 <button
                   className="w-full text-left px-3 py-2 text-sm flex items-center justify-between"
-                  onClick={() => {
-                    showNotification('Test Notification', 'This is a test notification to verify the system is working!');
+                  onClick={async () => {
+                    // Force show test notification regardless of focus state
+                    if (notificationPermission === 'granted') {
+                      try {
+                        const notification = new Notification('Test Notification', {
+                          body: 'This is a test notification to verify the system is working!',
+                          icon: '/favicon.ico',
+                          badge: '/favicon.ico',
+                          tag: 'test-notification',
+                          requireInteraction: false,
+                          silent: false
+                        });
+
+                        // Auto-close notification after 5 seconds
+                        setTimeout(() => {
+                          notification.close();
+                        }, 5000);
+
+                        // Focus tab when notification is clicked
+                        notification.onclick = () => {
+                          window.focus();
+                          notification.close();
+                        };
+                        
+                        alert('Test notification sent! Check if you received it.');
+                      } catch (error) {
+                        console.error('Failed to show test notification:', error);
+                        alert('Failed to show notification: ' + error);
+                      }
+                    } else {
+                      alert('Notifications are not enabled. Please enable notifications first.');
+                    }
                     (document.getElementById('settings-theme-menu') as HTMLElement)?.classList.add('hidden');
                   }}
                 >
                   <span>🧪 Test Notification</span>
                   <span className="text-xs text-gray-500">Click to test</span>
+                </button>
+                <button
+                  className="w-full text-left px-3 py-2 text-sm flex items-center justify-between"
+                  onClick={() => {
+                    const debugInfo = `
+Notification Debug Info:
+- Browser Support: ${'Notification' in window ? 'Yes' : 'No'}
+- Permission Status: ${Notification.permission}
+- Tab Focused: ${isTabFocused}
+- State Permission: ${notificationPermission}
+- Pending Notification: ${pendingNotification ? 'Yes' : 'No'}
+
+Check browser console for detailed logs.
+                    `;
+                    alert(debugInfo);
+                    console.log('Notification Debug Info:', {
+                      browserSupport: 'Notification' in window,
+                      permission: Notification.permission,
+                      tabFocused: isTabFocused,
+                      statePermission: notificationPermission,
+                      pendingNotification
+                    });
+                    (document.getElementById('settings-theme-menu') as HTMLElement)?.classList.add('hidden');
+                  }}
+                >
+                  <span>🔍 Debug Info</span>
+                  <span className="text-xs text-gray-500">Check status</span>
                 </button>
                 <button
                   className="w-full text-left px-3 py-2 text-sm flex items-center justify-between"
