@@ -99,6 +99,17 @@
   border-color: #9ca3af;
 }
 
+.filter-btn.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+}
+
+.filter-btn.active:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
 /* Search Results */
 .search-results {
   flex: 1;

@@ -150,6 +150,14 @@ export default function Home() {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  
+  // Search filter states
+  const [searchSortBy, setSearchSortBy] = useState<'relevance' | 'date' | 'title'>('relevance');
+  const [searchTitleOnly, setSearchTitleOnly] = useState(false);
+  const [searchCreatedBy, setSearchCreatedBy] = useState<string>('all');
+  const [searchAssistant, setSearchAssistant] = useState<string>('all');
+  const [searchIn, setSearchIn] = useState<string>('all');
+  const [searchDate, setSearchDate] = useState<string>('all');
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [responseId, setResponseId] = useState<string | undefined>(undefined);
@@ -263,21 +271,48 @@ export default function Home() {
   const runSearch = useCallback(async (q: string) => {
     setSearchQuery(q);
     if (!q.trim()) { setSearchResults([]); return; }
-    // Client-side quick search (priority: message content, then conversations, then assistants)
-    const msgHits = messages
-      .filter(m => (m.content||'').toLowerCase().includes(q.toLowerCase()))
+    
+    // Client-side quick search with filtering
+    let msgHits = messages
+      .filter(m => {
+        const content = (m.content||'').toLowerCase();
+        const query = q.toLowerCase();
+        return searchTitleOnly ? false : content.includes(query);
+      })
       .slice(0, 20)
-      .map(m => ({ type: 'message', id: m.id, title: m.content.substring(0, 120) }));
-    const assistantHits = assistantCatalog
-      .filter(a => a.name.toLowerCase().includes(q.toLowerCase()))
-      .map(a => ({ type: 'assistant', id: a.id, title: a.name, icon: a.avatar }));
-    const convoHits = (allConversations.length ? allConversations : conversations)
-      .filter(c => (c.title||'').toLowerCase().includes(q.toLowerCase()))
-      .map(c => ({ type: 'conversation', id: c.id, title: c.title }));
+      .map(m => ({ type: 'message', id: m.id, title: m.content.substring(0, 120), date: new Date().toISOString() }));
+    
+    let assistantHits = assistantCatalog
+      .filter(a => {
+        const name = a.name.toLowerCase();
+        const query = q.toLowerCase();
+        if (searchAssistant !== 'all' && a.id !== searchAssistant) return false;
+        return name.includes(query);
+      })
+      .map(a => ({ type: 'assistant', id: a.id, title: a.name, icon: a.avatar, date: new Date().toISOString() }));
+    
+    let convoHits = (allConversations.length ? allConversations : conversations)
+      .filter(c => {
+        const title = (c.title||'').toLowerCase();
+        const query = q.toLowerCase();
+        return title.includes(query);
+      })
+      .map(c => ({ type: 'conversation', id: c.id, title: c.title, date: c.updatedAt || c.createdAt || new Date().toISOString() }));
+    
+    // Apply sorting
+    const allResults = [...msgHits, ...convoHits, ...assistantHits];
+    
+    if (searchSortBy === 'title') {
+      allResults.sort((a, b) => a.title.localeCompare(b.title));
+    } else if (searchSortBy === 'date') {
+      allResults.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
+    // 'relevance' keeps original order
+    
     // Web search action (opens in new tab)
-    const webHit = { type: 'web', id: q, title: `Search the web for “${q}”` } as any;
-    setSearchResults([...msgHits, ...convoHits, ...assistantHits, webHit]);
-  }, [assistantCatalog, conversations, messages, allConversations]);
+    const webHit = { type: 'web', id: q, title: `Search the web for "${q}"` } as any;
+    setSearchResults([...allResults, webHit]);
+  }, [assistantCatalog, conversations, messages, allConversations, searchSortBy, searchTitleOnly, searchAssistant]);
   useEffect(() => {
     if (typeof window === 'undefined' || !('visualViewport' in window)) return;
     const vv = (window as any).visualViewport as VisualViewport | undefined;
@@ -2074,11 +2109,26 @@ export default function Home() {
                 
                 {/* Filter and Sort Options */}
                 <div className="search-filters">
-                  <button className="filter-btn">
+                  <button 
+                    className={`filter-btn ${searchSortBy !== 'relevance' ? 'active' : ''}`}
+                    onClick={() => {
+                      const sortOptions = ['relevance', 'date', 'title'];
+                      const currentIndex = sortOptions.indexOf(searchSortBy);
+                      const nextIndex = (currentIndex + 1) % sortOptions.length;
+                      setSearchSortBy(sortOptions[nextIndex] as any);
+                      if (searchQuery) runSearch(searchQuery);
+                    }}
+                  >
                     <ChevronDown size={14} />
-                    Sort
+                    Sort {searchSortBy !== 'relevance' && `(${searchSortBy})`}
                   </button>
-                  <button className="filter-btn">
+                  <button 
+                    className={`filter-btn ${searchTitleOnly ? 'active' : ''}`}
+                    onClick={() => {
+                      setSearchTitleOnly(!searchTitleOnly);
+                      if (searchQuery) runSearch(searchQuery);
+                    }}
+                  >
                     Aa Title only
                   </button>
                   <button className="filter-btn">
@@ -2086,9 +2136,18 @@ export default function Home() {
                     Created by
                     <ChevronDown size={14} />
                   </button>
-                  <button className="filter-btn">
+                  <button 
+                    className={`filter-btn ${searchAssistant !== 'all' ? 'active' : ''}`}
+                    onClick={() => {
+                      const assistantOptions = ['all', ...assistantCatalog.map(a => a.id)];
+                      const currentIndex = assistantOptions.indexOf(searchAssistant);
+                      const nextIndex = (currentIndex + 1) % assistantOptions.length;
+                      setSearchAssistant(assistantOptions[nextIndex]);
+                      if (searchQuery) runSearch(searchQuery);
+                    }}
+                  >
                     <Bot size={14} />
-                    Assistant
+                    Assistant {searchAssistant !== 'all' && `(${assistantCatalog.find(a => a.id === searchAssistant)?.name})`}
                     <ChevronDown size={14} />
                   </button>
                   <button className="filter-btn">
@@ -2111,7 +2170,8 @@ export default function Home() {
                       <div className="result-section-header">Today</div>
                       {searchResults.filter(r => r.type === 'assistant').map((r, idx)=>(
                         <div key={idx} className="search-result-item" role="option" aria-selected={idx===0}
-                          onClick={()=>{
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if(r.type==='assistant'){ setAssistantId(r.id); setShowSearch(false); }
                           }}
                         >
@@ -2123,10 +2183,49 @@ export default function Home() {
                             <div className="result-meta">AI Assistant</div>
                           </div>
                           <div className="result-actions">
-                            <button className="action-btn" title="Select">↑↓</button>
-                            <button className="action-btn" title="Open">→</button>
-                            <button className="action-btn" title="Open in new tab">↗</button>
-                            <button className="action-btn" title="Copy link">🔗 L</button>
+                            <button 
+                              className="action-btn" 
+                              title="Select"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if(r.type==='assistant'){ setAssistantId(r.id); setShowSearch(false); }
+                              }}
+                            >
+                              ↑↓
+                            </button>
+                            <button 
+                              className="action-btn" 
+                              title="Open"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if(r.type==='assistant'){ setAssistantId(r.id); setShowSearch(false); }
+                              }}
+                            >
+                              →
+                            </button>
+                            <button 
+                              className="action-btn" 
+                              title="Open in new tab"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if(r.type==='assistant'){ 
+                                  window.open(`/assistant/${r.id}`, '_blank'); 
+                                  setShowSearch(false); 
+                                }
+                              }}
+                            >
+                              ↗
+                            </button>
+                            <button 
+                              className="action-btn" 
+                              title="Copy link"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(`${window.location.origin}/assistant/${r.id}`);
+                              }}
+                            >
+                              🔗
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -2139,7 +2238,8 @@ export default function Home() {
                       <div className="result-section-header">Recent Conversations</div>
                       {searchResults.filter(r => r.type === 'conversation').map((r, idx)=>(
                         <div key={idx} className="search-result-item" role="option" aria-selected={idx===0}
-                          onClick={()=>{
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if(r.type==='conversation'){ loadConversation(r.id); setShowSearch(false); }
                           }}
                         >
@@ -2149,6 +2249,48 @@ export default function Home() {
                           <div className="result-content">
                             <div className="result-title">{r.title}</div>
                             <div className="result-meta">Conversation</div>
+                          </div>
+                          <div className="result-actions">
+                            <button 
+                              className="action-btn" 
+                              title="Select"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if(r.type==='conversation'){ loadConversation(r.id); setShowSearch(false); }
+                              }}
+                            >
+                              ↑↓
+                            </button>
+                            <button 
+                              className="action-btn" 
+                              title="Open"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if(r.type==='conversation'){ loadConversation(r.id); setShowSearch(false); }
+                              }}
+                            >
+                              →
+                            </button>
+                            <button 
+                              className="action-btn" 
+                              title="Open in new tab"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(`/conversation/${r.id}`, '_blank');
+                              }}
+                            >
+                              ↗
+                            </button>
+                            <button 
+                              className="action-btn" 
+                              title="Copy link"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(`${window.location.origin}/conversation/${r.id}`);
+                              }}
+                            >
+                              🔗
+                            </button>
                           </div>
                           <div className="result-date">Today</div>
                         </div>
@@ -2162,7 +2304,8 @@ export default function Home() {
                       <div className="result-section-header">Web Search</div>
                       {searchResults.filter(r => r.type === 'web').map((r, idx)=>(
                         <div key={idx} className="search-result-item" role="option" aria-selected={idx===0}
-                          onClick={()=>{
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if(r.type==='web'){ window.open(`https://www.google.com/search?q=${encodeURIComponent(r.id)}`,'_blank'); setShowSearch(false); }
                           }}
                         >
@@ -2174,8 +2317,42 @@ export default function Home() {
                             <div className="result-meta">Web Search</div>
                           </div>
                           <div className="result-actions">
-                            <button className="action-btn" title="Open">→</button>
-                            <button className="action-btn" title="Open in new tab">↗</button>
+                            <button 
+                              className="action-btn" 
+                              title="Open"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if(r.type==='web'){ 
+                                  window.open(`https://www.google.com/search?q=${encodeURIComponent(r.id)}`,'_blank'); 
+                                  setShowSearch(false); 
+                                }
+                              }}
+                            >
+                              →
+                            </button>
+                            <button 
+                              className="action-btn" 
+                              title="Open in new tab"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if(r.type==='web'){ 
+                                  window.open(`https://www.google.com/search?q=${encodeURIComponent(r.id)}`,'_blank'); 
+                                  setShowSearch(false); 
+                                }
+                              }}
+                            >
+                              ↗
+                            </button>
+                            <button 
+                              className="action-btn" 
+                              title="Copy link"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(`https://www.google.com/search?q=${encodeURIComponent(r.id)}`);
+                              }}
+                            >
+                              🔗
+                            </button>
                           </div>
                         </div>
                       ))}
