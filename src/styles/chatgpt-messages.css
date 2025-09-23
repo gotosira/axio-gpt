@@ -100,12 +100,13 @@ html[data-theme="dark"] :root {
    ========================= */
 .chatgpt-msg {
   color: var(--text);
-  background: var(--bg);
+  /* background: var(--bg); */
   line-height: var(--lh);
   font-feature-settings: "ss01","ss02","cv01";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   max-width: var(--maxw);
+  font-size: 16px;
 }
 
 .chatgpt-msg > *:first-child { margin-top: 0; }

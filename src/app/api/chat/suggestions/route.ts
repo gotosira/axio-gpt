@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { verify } from "jsonwebtoken";
+import { cookies } from "next/headers";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = (await getServerSession(authOptions as unknown as Record<string, unknown>)) as any;
-    if (!session?.user?.id) {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Verify token
+    const decoded = verify(token, process.env.NEXTAUTH_SECRET!) as {
+      userId: string;
+    };
 
     // For now, return some default suggestions
     // In the future, this could be enhanced to fetch from the assistant API
