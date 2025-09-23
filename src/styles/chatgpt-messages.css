@@ -53,7 +53,7 @@
   --kbd-bg: #111827;
   --kbd-text: #f9fafb;
   --selection: #fde68a;
-  --table-stripe: #f3f4f6;
+  --table-stripe: #f8fafc;
   --shadow: 0 1px 2px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.06);
 
   /* rhythm */
@@ -265,20 +265,33 @@ html[data-theme="dark"] mark {
 .chatgpt-msg table {
   width: 100%; border-collapse: collapse; margin: 1em 0; overflow: hidden;
   border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 .chatgpt-msg th,
 .chatgpt-msg td {
-  border: 1px solid var(--border); padding: .6rem .7rem; text-align: left; vertical-align: top;
+  border: 1px solid var(--border); padding: .75rem .875rem; text-align: left; vertical-align: top;
   color: var(--text);
+  font-size: 0.9em;
+  line-height: 1.4;
 }
 .chatgpt-msg thead th { 
-  background: var(--surface); 
+  background: linear-gradient(135deg, var(--surface), #f1f5f9); 
   font-weight: 700; 
   color: var(--text);
+  border-bottom: 2px solid var(--border);
 }
-.chatgpt-msg tbody tr:nth-child(odd) { 
+.chatgpt-msg tbody tr:nth-child(even) { 
   background: var(--table-stripe); 
 }
+.chatgpt-msg tbody tr:nth-child(odd) {
+  background: var(--bg);
+}
+.chatgpt-msg tbody tr:hover {
+  background: rgba(59, 130, 246, 0.05);
+  transition: background-color 0.2s ease;
+}
+.chatgpt-msg tbody tr:nth-child(even) td,
 .chatgpt-msg tbody tr:nth-child(odd) td {
   color: var(--text);
 }

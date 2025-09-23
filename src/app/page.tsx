@@ -1510,27 +1510,27 @@ export default function Home() {
           lineBuffer = lines.pop() || ""; // Keep the incomplete line in buffer
           
           const now = performance.now();
-          const urgent = now - lastFlushTs > 150; // Slightly longer delay for line-by-line
+          const urgent = now - lastFlushTs > 100; // Faster response for better UX
           
           if (lines.length > 0 && (!frameScheduled || urgent)) {
             frameScheduled = true;
             requestAnimationFrame(() => {
-              // Add complete lines one by one with a small delay
+              // Add complete lines one by one with a small delay for smooth streaming
               let currentLineIndex = 0;
               const addNextLine = () => {
                 if (currentLineIndex < lines.length) {
                   const lineToAdd = lines[currentLineIndex] + (currentLineIndex < lines.length - 1 ? '\n' : '');
                   assistantText += lineToAdd;
-                  setMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, content: assistantText } : m)));
-                  bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+              setMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, content: assistantText } : m)));
+              bottomRef.current?.scrollIntoView({ behavior: "smooth" });
                   currentLineIndex++;
                   
                   // Add a small delay between lines for better readability
                   if (currentLineIndex < lines.length) {
-                    setTimeout(addNextLine, 50); // 50ms delay between lines
+                    setTimeout(addNextLine, 30); // 30ms delay between lines for smoother effect
                   } else {
                     frameScheduled = false;
-                    lastFlushTs = performance.now();
+              lastFlushTs = performance.now();
                   }
                 } else {
                   frameScheduled = false;
@@ -1709,14 +1709,14 @@ export default function Home() {
               if (e.key === 'Enter') {
                 if (e.ctrlKey || e.metaKey) {
                   // Ctrl+Enter or Cmd+Enter to send
-                  e.preventDefault();
-                  const value = (localInput || e.currentTarget.value || '').trim();
-                  if (value) {
-                    handleSend(e, value);
-                    const visibleInput = e.currentTarget as HTMLTextAreaElement;
-                    if (visibleInput) { visibleInput.value = ''; visibleInput.style.height = '24px'; }
-                    setLocalInput('');
-                    const body = (e.currentTarget as HTMLTextAreaElement).parentElement; if (body) body.classList.remove('clamped');
+                e.preventDefault();
+                const value = (localInput || e.currentTarget.value || '').trim();
+                if (value) {
+                  handleSend(e, value);
+                  const visibleInput = e.currentTarget as HTMLTextAreaElement;
+                  if (visibleInput) { visibleInput.value = ''; visibleInput.style.height = '24px'; }
+                  setLocalInput('');
+                  const body = (e.currentTarget as HTMLTextAreaElement).parentElement; if (body) body.classList.remove('clamped');
                   }
                 }
                 // Regular Enter allows new lines (default behavior)
@@ -2203,19 +2203,19 @@ export default function Home() {
                       setAssistantId(a.code);
                       setShowAssistantPicker(false);
                       const createdTitle = `New Chat with ${a.name}`;
-                      try {
-                        const resp = await fetch('/api/conversations', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ title: createdTitle, assistantId: a.code }),
-                        });
-                        if (resp.ok) {
-                          const conv = await resp.json();
-                          setCurrentConvId(conv.id);
-                          await loadConversations(a.code);
-                          await handleSend(undefined, `Hello, ${a.name}..`, conv.id, a.code);
-                        }
-                      } catch (e) {}
+                        try {
+                          const resp = await fetch('/api/conversations', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title: createdTitle, assistantId: a.code }),
+                          });
+                          if (resp.ok) {
+                            const conv = await resp.json();
+                            setCurrentConvId(conv.id);
+                            await loadConversations(a.code);
+                            await handleSend(undefined, `Hello, ${a.name}..`, conv.id, a.code);
+                          }
+                        } catch (e) {}
                     }}
                   >
                     <div className="assistant-avatar">
@@ -2248,12 +2248,12 @@ export default function Home() {
                 <div className="search-input-container">
                   <div className="search-input-wrapper">
                     <Search className="search-icon" size={20} />
-                    <input
-                      autoFocus
+              <input
+                autoFocus
                       className="search-input"
                       placeholder="Search or ask a question in AXIO-GPT..."
-                      value={searchQuery}
-                      onChange={(e)=> runSearch(e.target.value)}
+                value={searchQuery}
+                onChange={(e)=> runSearch(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'ArrowDown') {
                           e.preventDefault();
@@ -2280,7 +2280,7 @@ export default function Home() {
                       }}
                     />
                     <Menu className="search-menu-icon" size={20} />
-                  </div>
+                </div>
                 </div>
                 
                 {/* Filter and Sort Options */}
@@ -2340,7 +2340,7 @@ export default function Home() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedResultIndex(searchResults.indexOf(r));
-                            if(r.type==='assistant'){ setAssistantId(r.id); setShowSearch(false); }
+                        if(r.type==='assistant'){ setAssistantId(r.id); setShowSearch(false); }
                           }}
                         >
                           <div className="result-icon">
@@ -2415,7 +2415,7 @@ export default function Home() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedResultIndex(searchResults.indexOf(r));
-                            if(r.type==='conversation'){ loadConversation(r.id); setShowSearch(false); }
+                        if(r.type==='conversation'){ loadConversation(r.id); setShowSearch(false); }
                           }}
                         >
                           <div className="result-icon">
@@ -2488,12 +2488,12 @@ export default function Home() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedResultIndex(searchResults.indexOf(r));
-                            if(r.type==='web'){ window.open(`https://www.google.com/search?q=${encodeURIComponent(r.id)}`,'_blank'); setShowSearch(false); }
-                          }}
-                        >
+                        if(r.type==='web'){ window.open(`https://www.google.com/search?q=${encodeURIComponent(r.id)}`,'_blank'); setShowSearch(false); }
+                      }}
+                    >
                           <div className="result-icon">
                             🌐
-                          </div>
+                      </div>
                           <div className="result-content">
                             <div className="result-title">{r.title}</div>
                             <div className="result-meta">Web Search</div>
@@ -2537,8 +2537,8 @@ export default function Home() {
                               🔗
                             </button>
                           </div>
-                        </div>
-                      ))}
+                    </div>
+                  ))}
                     </>
                   )}
                 </div>
