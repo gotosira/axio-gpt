@@ -595,17 +595,19 @@ export default function Home() {
     const targetAssistantId = specificAssistantId || assistantId;
     
     // Check cache first
-    if (conversationCache[targetAssistantId]) {
+    if (targetAssistantId && conversationCache[targetAssistantId]) {
       setConversations(conversationCache[targetAssistantId]);
       return conversationCache[targetAssistantId];
     }
     
     // Prevent duplicate loading
-    if (loadingConversations.has(targetAssistantId)) {
+    if (targetAssistantId && loadingConversations.has(targetAssistantId)) {
       return conversationCache[targetAssistantId] || [];
     }
     
-    setLoadingConversations(prev => new Set(prev).add(targetAssistantId));
+    if (targetAssistantId) {
+      setLoadingConversations(prev => new Set(prev).add(targetAssistantId));
+    }
     
     try {
       const url = new URL("/api/conversations", window.location.origin);
@@ -616,17 +618,21 @@ export default function Home() {
         const data = await response.json();
         
         // Cache the conversations
-        setConversationCache(prev => ({
-          ...prev,
-          [targetAssistantId]: data
-        }));
+        if (targetAssistantId) {
+          setConversationCache(prev => ({
+            ...prev,
+            [targetAssistantId]: data
+          }));
+        }
         
         setConversations(data);
-        setLoadingConversations(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(targetAssistantId);
-          return newSet;
-        });
+        if (targetAssistantId) {
+          setLoadingConversations(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(targetAssistantId);
+            return newSet;
+          });
+        }
         
         return data as Conversation[];
       } else if (response.status === 401) {
@@ -638,11 +644,13 @@ export default function Home() {
       }
     } catch (error) {
       console.warn('Error loading conversations:', error);
-      setLoadingConversations(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(targetAssistantId);
-        return newSet;
-      });
+      if (targetAssistantId) {
+        setLoadingConversations(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(targetAssistantId);
+          return newSet;
+        });
+      }
       return [] as Conversation[];
     }
   };
