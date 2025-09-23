@@ -1375,7 +1375,7 @@ export default function Home() {
     setMessages((prev) => [...prev, { 
       id: assistantMsgId, 
       role: "assistant", 
-      content: "",
+      content: "Thinking...",
       thoughtProcess
     }]);
 
@@ -1493,7 +1493,8 @@ export default function Home() {
       let frameScheduled = false;
       let pendingBuffer = "";
       let lastFlushTs = performance.now();
-      let lineBuffer = "";
+      let wordBuffer = "";
+      let isFirstChunk = true;
       
       try {
         while (true) {
@@ -1503,31 +1504,39 @@ export default function Home() {
           if (loading) setLoading(false);
           
           pendingBuffer += chunk;
-          lineBuffer += chunk;
+          wordBuffer += chunk;
           
-          // Process complete lines
-          const lines = lineBuffer.split('\n');
-          lineBuffer = lines.pop() || ""; // Keep the incomplete line in buffer
+          // Process words for smoother streaming
+          const words = wordBuffer.split(/(\s+)/);
+          wordBuffer = words.pop() || ""; // Keep the incomplete word in buffer
           
           const now = performance.now();
-          const urgent = now - lastFlushTs > 100; // Faster response for better UX
+          const urgent = now - lastFlushTs > 50; // Faster response for better UX
           
-          if (lines.length > 0 && (!frameScheduled || urgent)) {
+          if (words.length > 0 && (!frameScheduled || urgent || isFirstChunk)) {
             frameScheduled = true;
+            isFirstChunk = false;
+            
             requestAnimationFrame(() => {
-              // Add complete lines one by one with a small delay for smooth streaming
-              let currentLineIndex = 0;
-              const addNextLine = () => {
-                if (currentLineIndex < lines.length) {
-                  const lineToAdd = lines[currentLineIndex] + (currentLineIndex < lines.length - 1 ? '\n' : '');
-                  assistantText += lineToAdd;
-              setMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, content: assistantText } : m)));
-              bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-                  currentLineIndex++;
+              // Add words one by one for smooth streaming
+              let currentWordIndex = 0;
+              const addNextWord = () => {
+                if (currentWordIndex < words.length) {
+                  const wordToAdd = words[currentWordIndex];
+                  assistantText += wordToAdd;
                   
-                  // Add a small delay between lines for better readability
-                  if (currentLineIndex < lines.length) {
-                    setTimeout(addNextLine, 30); // 30ms delay between lines for smoother effect
+                  // Update message content, clearing "Thinking..." on first word
+                  const displayText = assistantText.startsWith("Thinking...") && assistantText.length > 10 
+                    ? assistantText.replace("Thinking...", "").trim()
+                    : assistantText.replace("Thinking...", "");
+                  
+                  setMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, content: displayText } : m)));
+              bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+                  currentWordIndex++;
+                  
+                  // Add a small delay between words for typing effect
+                  if (currentWordIndex < words.length) {
+                    setTimeout(addNextWord, 20); // 20ms delay between words for typing effect
                   } else {
                     frameScheduled = false;
               lastFlushTs = performance.now();
@@ -1537,15 +1546,16 @@ export default function Home() {
                   lastFlushTs = performance.now();
                 }
               };
-              addNextLine();
+              addNextWord();
             });
           }
         }
         
         // Process any remaining content
-        if (lineBuffer) {
-          assistantText += lineBuffer;
-          setMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, content: assistantText } : m)));
+        if (wordBuffer) {
+          assistantText += wordBuffer;
+          const displayText = assistantText.replace("Thinking...", "");
+          setMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, content: displayText } : m)));
         }
       } finally {
         setLoading(false);
@@ -2795,10 +2805,13 @@ export default function Home() {
                     </div>
                     <div className="flex-1">
                       <div className="chat-message-bubble assistant">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-[#8a95a8] rounded-full animate-pulse"></div>
-                          <div className="w-2 h-2 bg-[#8a95a8] rounded-full animate-pulse animation-delay-200"></div>
-                          <div className="w-2 h-2 bg-[#8a95a8] rounded-full animate-pulse animation-delay-400"></div>
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <span>Thinking</span>
+                          <div className="flex items-center gap-1">
+                            <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce"></div>
+                            <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                            <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                          </div>
                         </div>
                       </div>
                     </div>
