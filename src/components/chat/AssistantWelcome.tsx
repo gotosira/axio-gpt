@@ -91,18 +91,6 @@ export function AssistantWelcome({ assistantId, onSuggestionClick }: AssistantWe
         {assistant.name} - {assistant.title}
       </h1>
 
-      {/* Author */}
-      <div className="flex items-center gap-1 text-gray-600 mb-4">
-        <span className="text-sm">By {assistant.author}</span>
-        <span className="text-xs">👤</span>
-      </div>
-
-      {/* Model Info */}
-      {'model' in assistant && assistant.model && (
-        <div className="flex items-center gap-1 text-gray-600 mb-6">
-          <span className="text-sm">✓ Using the creator's recommended model: {assistant.model}</span>
-        </div>
-      )}
 
       {/* Greeting */}
       <div className="text-lg font-medium text-gray-900 mb-4 text-center">
