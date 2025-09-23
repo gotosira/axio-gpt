@@ -42,8 +42,8 @@ export function AssistantWelcome({ assistantId, onSuggestionClick }: AssistantWe
       title: 'UX Analyst',
       avatar: '/avatars/PungPung.png',
       author: 'chanitha boontarak',
-      greeting: 'Hello! My name is PungPung [ปังปัง]',
-      description: 'your assistant to make your work many times more "Pung" (awesome/successful) ✨ with the ability to summarize and analyze Product Feedback data. If you\'re ready, click on the topic you want us to help with!',
+      greeting: 'สวัสดีจ้า เราชื่อ PungPung [ปังปัง] ',
+      description: 'ผู้ช่วยให้งานของคุณปังขึ้นอีกหลายเท่า ✨ ด้วยความสามารถในการสรุปและวิเคราะห์ข้อมูล Product Feedback ถ้าพร้อมแล้วกดเลือกหัวข้อที่คุณอยากให้เราช่วยได้เลย!',
       suggestions: [
         { text: 'สรุปข้อมูล', subtext: 'Feedback', icon: '💬' },
         { text: 'สรุปข้อมูล', subtext: 'คะแนน CSAT', icon: '⭐' }
@@ -55,8 +55,8 @@ export function AssistantWelcome({ assistantId, onSuggestionClick }: AssistantWe
       avatar: '/avatars/FlowFlow.jpeg',
       author: 'community builder',
       model: 'GPT-5',
-      greeting: 'Hello~ We are FlowFlow (FlowFlow) 🐙',
-      description: 'We were born to help design UX/UI to be awesome, beautiful, and meet AXONS standards! Whether it\'s Web or Mobile, we are ready to recommend smooth usage on all platforms 💻',
+      greeting: 'ฮัลโหล~ เราชื่อ FlowFlow (โฟลวโฟลว) 🐙',
+      description: 'เราเกิดมาเพื่อช่วยดีไซน์ UX/UI ให้ปัง สวย และตรงมาตรฐานของ AXONS! ไม่ว่าจะเป็น Web หรือ Mobile เราพร้อมแนะนำให้ใช้งานได้ลื่นทุกแพลตฟอร์มเลย 💻📱',
       suggestions: [
         'ช่วยค้นหาหรือ แนะนำ System Icon ให้ฉันหน่อย',
         'เด๋วจะส่ง Mockup ให้ ช่วยรีวิวหน่อยจ้า',
