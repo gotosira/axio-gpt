@@ -10,6 +10,7 @@ import { GoogleDrivePicker, useGoogleDriveAuth } from "@/components/GoogleDriveP
 import { Plus, Search, Mic, User, Settings, Menu, ChevronDown, LogOut, Bot } from "lucide-react";
 import { CustomAuthWrapper } from "@/components/auth/CustomAuthWrapper";
 import { CustomAuthModal } from "@/components/auth/CustomAuthModal";
+import { AssistantWelcome } from "@/components/chat/AssistantWelcome";
 import { useTheme } from "@/components/ClientThemeProvider";
 
 type ChatMessage = { 
@@ -78,6 +79,18 @@ export default function Home() {
     } catch (error) {
       console.error("Sign out failed:", error);
     }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    // Set the input value to the suggestion
+    setInput(suggestion);
+    // Focus the input field
+    setTimeout(() => {
+      const inputElement = document.querySelector('textarea[placeholder*="Ask another question"]') as HTMLTextAreaElement;
+      if (inputElement) {
+        inputElement.focus();
+      }
+    }, 100);
   };
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [allConversations, setAllConversations] = useState<Conversation[]>([]);
@@ -598,9 +611,6 @@ export default function Home() {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSuggestionClick = (suggestion: { action: string }) => {
-    setInput(suggestion.action);
-  };
 
   const handleGoogleDriveSelect = async () => {
     try {
@@ -2066,12 +2076,17 @@ export default function Home() {
         {/* Chat Area */}
         <div className="flex-1 flex flex-col">
           {messages.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center">
-              <h1 className="text-2xl font-medium mb-8 text-primary">What can I help with?</h1>
+            <div className="flex-1 flex flex-col">
+              {assistantId && (
+                <AssistantWelcome 
+                  assistantId={assistantId} 
+                  onSuggestionClick={handleSuggestionClick}
+                />
+              )}
               
               {/* Action Cards - Only show if suggestions are available */}
               {suggestions.length > 0 && (
-                <div className="w-full max-w-6xl mb-8">
+                <div className="w-full max-w-6xl mb-8 px-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {suggestions.map((suggestion, idx) => (
                       <div key={idx} className="message-summary-card">
@@ -2082,7 +2097,7 @@ export default function Home() {
                           <p className="message-card-description">{suggestion.description}</p>
                           <div className="message-card-link">
                             <span className="message-card-icon">📎</span>
-                            <button className="message-card-link-text" onClick={() => handleSuggestionClick(suggestion)}>
+                            <button className="message-card-link-text" onClick={() => handleSuggestionClick(suggestion.action)}>
                               Try it
                             </button>
                           </div>
