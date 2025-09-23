@@ -1380,18 +1380,40 @@ export default function Home() {
       thoughtProcess
     }]);
 
-    // Handle image generation for FlowFlow
+    // Handle image generation for FlowFlow - First get knowledge-based response, then generate image
     if (isImageRequest) {
       try {
+        // First, get FlowFlow's knowledge-based response using the normal assistant flow
+        const knowledgeResponse = await fetch("/api/assistants/respond", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            assistantId: assistantIdForRequest,
+            message: thinkingPrefix + baseText + replyContext,
+            fileIds: docIds,
+            imageIds,
+          }),
+        });
+
+        let knowledgeContent = "";
+        if (knowledgeResponse.ok) {
+          const knowledgeData = await knowledgeResponse.json().catch(() => ({}));
+          knowledgeContent = knowledgeData.text || knowledgeData.output_text || '';
+        }
+
         // Extract image generation prompt from user input
         const imagePrompt = baseText.replace(imageGenerationKeywords, '').trim();
-        const enhancedPrompt = `UI/UX design mockup, ${imagePrompt}, professional design, clean interface, modern style, high quality`;
+        
+        // Create enhanced prompt that includes FlowFlow's knowledge and recommendations
+        const knowledgeBasedPrompt = knowledgeContent 
+          ? `Based on UX/UI expertise and knowledge: ${knowledgeContent}. Create UI/UX design mockup for: ${imagePrompt}. Professional design, clean interface, modern style, high quality, following best practices.`
+          : `UI/UX design mockup, ${imagePrompt}, professional design, clean interface, modern style, high quality`;
         
         const imageResponse = await fetch('/api/openai/generate-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            prompt: enhancedPrompt,
+            prompt: knowledgeBasedPrompt,
             size: '1024x1024',
             quality: 'hd',
             style: 'vivid'
@@ -1400,15 +1422,19 @@ export default function Home() {
 
         if (imageResponse.ok) {
           const imageData = await imageResponse.json();
-          const imageContent = `🎨 **Generated UI/UX Design Mockup**\n\n${imageData.revisedPrompt}\n\n![Generated Design](${imageData.imageUrl})`;
+          
+          // Combine knowledge response with generated image
+          const combinedContent = knowledgeContent 
+            ? `## 🧠 FlowFlow's Analysis & Recommendations\n\n${knowledgeContent}\n\n---\n\n## 🎨 Generated UI/UX Design Mockup\n\n${imageData.revisedPrompt}\n\n![Generated Design](${imageData.imageUrl})`
+            : `🎨 **Generated UI/UX Design Mockup**\n\n${imageData.revisedPrompt}\n\n![Generated Design](${imageData.imageUrl})`;
           
           setMessages((prev) => prev.map(m => 
             m.id === assistantMsgId 
-              ? { ...m, content: imageContent, thoughtProcess: { ...m.thoughtProcess, isComplete: true } as ChatMessage['thoughtProcess'] }
+              ? { ...m, content: combinedContent, thoughtProcess: { ...m.thoughtProcess, isComplete: true } as ChatMessage['thoughtProcess'] }
               : m
           ));
 
-          // Save the assistant message with image
+          // Save the assistant message with combined content
           if (stableConvId) {
             try {
               await fetch("/api/chat/save-message", {
@@ -1416,7 +1442,7 @@ export default function Home() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   role: "assistant",
-                  content: imageContent,
+                  content: combinedContent,
                   conversationId: stableConvId,
                 }),
               });
