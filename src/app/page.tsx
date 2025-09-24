@@ -12,6 +12,7 @@ import { CustomAuthModal } from "@/components/auth/CustomAuthModal";
 import { AssistantWelcome } from "@/components/chat/AssistantWelcome";
 import { useTheme } from "@/components/ClientThemeProvider";
 import GroupChatResponse from "@/components/chat/GroupChatResponse";
+import GroupChatWelcome from "@/components/chat/GroupChatWelcome";
 
 type ChatMessage = { 
   id: string; 
@@ -552,6 +553,7 @@ export default function Home() {
     { id: 'asst_CO7qtWO5QTfgV0Gyv77XQY8q', code: 'asst_CO7qtWO5QTfgV0Gyv77XQY8q', name: 'DeeDee', emoji: '🦊', avatar: deedeeAvatar },
     { id: 'asst_Pi6FrBRHRpvhwSOIryJvDo3T', code: 'asst_Pi6FrBRHRpvhwSOIryJvDo3T', name: 'PungPung', emoji: '🦉', avatar: pungpungAvatar },
     { id: 'asst_4nCaYlt7AA5Ro4pseDCTbKHO', code: 'asst_4nCaYlt7AA5Ro4pseDCTbKHO', name: 'FlowFlow', emoji: '🐙', avatar: flowflowAvatar },
+    { id: 'group', code: 'group', name: 'Group Chat', emoji: '🎉', avatar: '/avatars/GroupChat.svg' },
   ];
   const assistantById = (id?: string) => {
     const result = assistantCatalog.find(a => a.code === id);
@@ -1625,10 +1627,10 @@ export default function Home() {
         Object.keys(conversationCache).forEach(assistantId => {
           loadConversations(assistantId);
         });
-      } else {
+          } else {
         console.error('Failed to delete conversation:', response.status, await response.text());
-      }
-    } catch (error) {
+          }
+      } catch (error) {
       console.error('Error deleting conversation:', error);
     }
   };
@@ -2024,20 +2026,43 @@ export default function Home() {
                     key={a.id}
                     className={`w-full flex items-center gap-2 px-2 py-2 rounded text-left assistant-button ${assistantId===a.code? 'selected':''} has-tooltip`}
                     onClick={async () => { 
+                      if (a.code === 'group') {
+                        // Special handling for Group Chat
+                        setAssistantId('group');
+                        setGroupChatMode(true);
+                        setBetaMode(true);
+                        setCurrentConvId(undefined);
+                        setMessages([]);
+                        setCurrentConversationTitle('Group Chat');
+                        setDetectedAssistant('group');
+                        
+                        // Load group chat conversations
+                        if (conversationCache['group']) {
+                          setConversations(conversationCache['group']);
+                        } else {
+                          setConversations([]);
+                        }
+                        await loadConversations('group');
+                      } else {
+                        // Regular assistant handling
                       setAssistantId(a.code); 
                       setCurrentConvId(undefined); 
                       setMessages([]); 
                       setCurrentConversationTitle('New Chat'); 
-                      
-                      // Load conversations with caching for faster switching
-                      // Show immediate feedback if cached, otherwise show loading
-                      if (conversationCache[a.code]) {
-                        setConversations(conversationCache[a.code]);
-                      } else {
-                        // Clear current conversations while loading
-                        setConversations([]);
+                        setGroupChatMode(false);
+                        setBetaMode(false);
+                        setDetectedAssistant(null);
+                        
+                        // Load conversations with caching for faster switching
+                        // Show immediate feedback if cached, otherwise show loading
+                        if (conversationCache[a.code]) {
+                          setConversations(conversationCache[a.code]);
+                        } else {
+                          // Clear current conversations while loading
+                          setConversations([]);
+                        }
+                        await loadConversations(a.code);
                       }
-                      await loadConversations(a.code);
                     }}
                     data-tooltip={a.name}
                     onMouseEnter={(e)=>{
@@ -2297,8 +2322,31 @@ export default function Home() {
                     onMouseEnter={() => playUiSound('hover')}
                     onClick={async () => {
                       playUiSound('select');
-                      setAssistantId(a.code);
                       setShowAssistantPicker(false);
+                      
+                      if (a.code === 'group') {
+                        // Special handling for Group Chat
+                        setAssistantId('group');
+                        setGroupChatMode(true);
+                        setBetaMode(true);
+                        setCurrentConvId(undefined);
+                        setMessages([]);
+                        setCurrentConversationTitle('Group Chat');
+                        setDetectedAssistant('group');
+                        
+                        // Load group chat conversations
+                        if (conversationCache['group']) {
+                          setConversations(conversationCache['group']);
+                        } else {
+                          setConversations([]);
+                        }
+                        await loadConversations('group');
+                      } else {
+                        // Regular assistant handling
+                        setAssistantId(a.code);
+                        setGroupChatMode(false);
+                        setBetaMode(false);
+                        setDetectedAssistant(null);
                       const createdTitle = `New Chat with ${a.name}`;
                         try {
                           const resp = await fetch('/api/conversations', {
@@ -3067,6 +3115,12 @@ Check browser console for detailed logs.
                     </div>
                   </div>
                 </div>
+              ) : assistantId && assistantId === 'group' ? (
+                <GroupChatWelcome 
+                  onSuggestionClick={handleSuggestionClick}
+                  recentConversations={conversations.slice(0, 5)}
+                  onConversationClick={loadConversation}
+                />
               ) : assistantId && (
                 <AssistantWelcome 
                   assistantId={assistantId} 
