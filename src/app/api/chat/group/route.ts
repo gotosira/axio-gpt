@@ -65,21 +65,35 @@ In group discussions, focus on design solutions, user experience, and visual imp
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Group chat API called');
+    
     const cookieStore = await cookies();
     const token = cookieStore.get("auth-token")?.value;
 
     if (!token) {
+      console.log('No auth token found');
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as {
-      userId: string;
-    };
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as {
+        userId: string;
+      };
+      console.log('Token verified for user:', decoded.userId);
+    } catch (error) {
+      console.log('Token verification failed:', error);
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
 
-    const { message, conversationId } = await request.json();
+    const body = await request.json();
+    console.log('Request body:', body);
+    
+    const { message, conversationId } = body;
 
     if (!message || !conversationId) {
+      console.log('Missing required fields:', { message: !!message, conversationId: !!conversationId });
       return NextResponse.json({ error: "Message and conversationId are required" }, { status: 400 });
     }
 
@@ -125,6 +139,11 @@ Keep your response focused and concise (2-3 paragraphs max).`
           };
         } catch (error) {
           console.error(`Error getting initial thoughts from ${config.name}:`, error);
+          console.error('Error details:', {
+            assistantId,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined
+          });
           return {
             assistantId,
             name: config.name,
@@ -257,8 +276,16 @@ ${synthesisContext}`
 
   } catch (error) {
     console.error('Group chat error:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined
+    });
     return NextResponse.json(
-      { error: 'Failed to process group chat request' },
+      { 
+        error: 'Failed to process group chat request',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
