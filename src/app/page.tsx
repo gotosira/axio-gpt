@@ -11,6 +11,7 @@ import { CustomAuthWrapper } from "@/components/auth/CustomAuthWrapper";
 import { CustomAuthModal } from "@/components/auth/CustomAuthModal";
 import { AssistantWelcome } from "@/components/chat/AssistantWelcome";
 import { useTheme } from "@/components/ClientThemeProvider";
+import GroupChatResponse from "@/components/chat/GroupChatResponse";
 
 type ChatMessage = { 
   id: string; 
@@ -89,6 +90,190 @@ export default function Home() {
     // Clear the input and send the suggestion immediately
     setInput('');
     await handleSend(undefined, suggestion);
+  };
+
+  const handleSend = async (e?: React.FormEvent, customText?: string, overrideConversationId?: string, overrideAssistantId?: string) => {
+    const baseText = customText || input.trim();
+    if (!baseText || loading) return;
+
+    setLoading(true);
+    setInput('');
+    setGroupChatResponse(null); // Clear previous group chat response
+
+    // Create user message
+    const userMessage: ChatMessage = {
+      id: `temp-user-${Date.now()}`,
+      role: 'user',
+      content: baseText,
+    };
+
+    // Add user message to UI immediately
+    setMessages(prev => [...prev, userMessage]);
+
+    // Determine which assistant to use
+    let chosenAssistantId = assistantId;
+    let convoAssistantId = currentConvId ? conversations.find(c => c.id === currentConvId)?.assistantId : undefined;
+    
+    // In beta mode, detect intent and route to appropriate assistant
+    let finalAssistantId = chosenAssistantId;
+    if (betaMode && !overrideAssistantId && !convoAssistantId) {
+      const detectedIntent = detectAssistantIntent(baseText);
+      if (detectedIntent) {
+        if (detectedIntent === 'group') {
+          setGroupChatMode(true);
+          setAssistantId(undefined);
+          setDetectedAssistant('group');
+        } else {
+          finalAssistantId = detectedIntent;
+          setDetectedAssistant(detectedIntent);
+        }
+      }
+    }
+
+    // Handle group chat mode
+    if (groupChatMode || detectedAssistant === 'group') {
+      try {
+        console.log('Starting group chat processing...');
+        
+        // Create or get conversation
+        let targetConversationId = currentConvId;
+        if (!targetConversationId) {
+          let provisionalTitle = 'Group Chat';
+          let conversationAssistantId = 'group';
+          
+          const createResp = await fetch("/api/conversations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: provisionalTitle, assistantId: conversationAssistantId }),
+          });
+          
+          if (createResp.ok) {
+            const created = await createResp.json();
+            console.log('Group chat conversation created:', created);
+            targetConversationId = created.id;
+            setCurrentConvId(created.id);
+            setCurrentConversationTitle(provisionalTitle);
+            
+            // Immediately add to sidebar
+            setConversations(prev => [created, ...prev]);
+            
+            setConversationCache(prev => ({
+              ...prev,
+              [conversationAssistantId]: [created, ...(prev[conversationAssistantId] || [])]
+            }));
+            
+            loadConversations(conversationAssistantId);
+          }
+        }
+
+        // Save user message
+        if (targetConversationId) {
+          const userSaveResponse = await fetch('/api/chat/save-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              conversationId: targetConversationId,
+              role: 'user',
+              content: baseText,
+            }),
+          });
+
+          if (userSaveResponse.ok) {
+            const savedUserMessage = await userSaveResponse.json();
+            setMessages(prev => prev.map(msg => 
+              msg.id === userMessage.id 
+                ? { ...msg, id: savedUserMessage.id }
+                : msg
+            ));
+          }
+        }
+
+        // Call group chat API
+        const groupResponse = await fetch('/api/chat/group', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: baseText,
+            conversationId: targetConversationId,
+          }),
+        });
+
+        if (groupResponse.ok) {
+          const groupData = await groupResponse.json();
+          console.log('Group chat response received:', groupData);
+          
+          // Set the group chat response for display
+          setGroupChatResponse(groupData.collaborativeResponse);
+          
+          // Create assistant message with the final answer
+          const assistantMessage: ChatMessage = {
+            id: `temp-assistant-${Date.now()}`,
+            role: 'assistant',
+            content: groupData.collaborativeResponse.finalAnswer,
+          };
+
+          setMessages(prev => [...prev, assistantMessage]);
+
+          // Save assistant message
+          if (targetConversationId) {
+            const saveResponse = await fetch('/api/chat/save-message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                conversationId: targetConversationId,
+                role: 'assistant',
+                content: groupData.collaborativeResponse.finalAnswer,
+              }),
+            });
+
+            if (saveResponse.ok) {
+              const savedMessage = await saveResponse.json();
+              setMessages(prev => prev.map(msg => 
+                msg.id === assistantMessage.id 
+                  ? { ...msg, id: savedMessage.id }
+                  : msg
+              ));
+            }
+          }
+
+          // Show notification
+          if (!isTabFocused && notificationPermission === 'granted') {
+            showNotification(
+              'AI Team has finished collaborating',
+              'All 4 AIs have completed their discussion and provided a final answer.',
+              undefined
+            );
+          }
+
+        } else {
+          const errorData = await groupResponse.json();
+          const errorMessage = `Error: ${errorData.error || 'Failed to process group chat'}`;
+          setMessages(prev => [...prev, {
+            id: `temp-assistant-${Date.now()}`,
+            role: 'assistant',
+            content: errorMessage,
+          }]);
+        }
+
+      } catch (error) {
+        console.error('Group chat error:', error);
+        setMessages(prev => [...prev, {
+          id: `temp-assistant-${Date.now()}`,
+          role: 'assistant',
+          content: `Error: ${error instanceof Error ? error.message : 'Failed to process group chat'}`,
+        }]);
+      }
+    } else {
+      // Regular single AI chat (existing logic would go here)
+      // For now, just show a placeholder
+      setMessages(prev => [...prev, {
+        id: `temp-assistant-${Date.now()}`,
+        role: 'assistant',
+        content: 'Single AI chat functionality will be implemented here.',
+      }]);
+    }
+
+    setLoading(false);
   };
 
   // Notification functions
@@ -357,6 +542,7 @@ export default function Home() {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [pendingNotification, setPendingNotification] = useState<{ title: string; body: string; icon?: string } | null>(null);
   const [hasCreatedConversationForInput, setHasCreatedConversationForInput] = useState<boolean>(false);
+  const [groupChatResponse, setGroupChatResponse] = useState<any>(null);
   const babaoAvatar = process.env.NEXT_PUBLIC_AVATAR_BABAO ?? '/avatars/BaoBao.jpeg';
   const deedeeAvatar = process.env.NEXT_PUBLIC_AVATAR_DEEDEE ?? '/avatars/DeeDee.png';
   const pungpungAvatar = process.env.NEXT_PUBLIC_AVATAR_PUNGPUNG ?? '/avatars/PungPung.png';
@@ -3326,7 +3512,11 @@ Check browser console for detailed logs.
                         </div>
                   
                   <div className="text-gray-700 dark:text-gray-300 mb-8 max-w-2xl text-center leading-relaxed">
-                    ทุก AI จะทำงานร่วมกันเพื่อตอบคำถามของคุณ<br/>
+                    ทุก AI จะทำงานร่วมกันอย่างเป็นระบบเพื่อตอบคำถามของคุณ<br/>
+                    <strong>ขั้นตอนการทำงาน:</strong><br/>
+                    1. 💭 <strong>Initial Analysis</strong> - แต่ละ AI ให้ความเห็นเบื้องต้น<br/>
+                    2. 💬 <strong>Team Discussion</strong> - AIs อภิปรายและเสริมความคิดซึ่งกันและกัน<br/>
+                    3. ✨ <strong>Final Answer</strong> - สรุปคำตอบสุดท้ายจากทีม AI ทั้งหมด<br/>
                     BaoBao, DeeDee, PungPung, และ FlowFlow พร้อมช่วยเหลือ!
                   </div>
                   
@@ -3535,6 +3725,14 @@ Check browser console for detailed logs.
     </div>
   );
                 })}
+                
+                {/* Group Chat Response Display */}
+                {groupChatResponse && !loading && (
+                  <div className="group-chat-response-container">
+                    <GroupChatResponse response={groupChatResponse} />
+                  </div>
+                )}
+                
                 {loading && (
                   <div className="flex items-start gap-2 py-1 pl-0 pr-10">
                     <div className="avatar">
