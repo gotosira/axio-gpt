@@ -2361,6 +2361,7 @@ export default function Home() {
                             await handleSend(undefined, `Hello, ${a.name}..`, conv.id, a.code);
                           }
                         } catch (e) {}
+                      }
                     }}
                   >
                     <div className="assistant-avatar">

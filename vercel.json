@@ -1,37 +1,8 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ],
   "functions": {
     "src/app/api/**/*.ts": {
       "maxDuration": 30
     }
-  },
-  "env": {
-    "NODE_ENV": "@node_env",
-    "NEXTAUTH_SECRET": "@nextauth_secret",
-    "OPENAI_API_KEY": "@openai_api_key",
-    "DATABASE_URL": "@database_url"
-  },
-  "git": {
-    "deploymentEnabled": {
-      "main": true,
-      "staging": true,
-      "develop": true
-    }
-  },
-  "github": {
-    "enabled": true,
-    "autoAlias": false
-  },
-  "alias": [
-    {
-      "domain": "axio-gpt-staging.vercel.app",
-      "target": "staging"
-    }
-  ]
+  }
 }
