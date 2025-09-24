@@ -89,10 +89,13 @@ export async function POST(request: NextRequest) {
     const initialThoughts = await Promise.all(
       Object.entries(AI_ASSISTANTS).map(async ([assistantId, config]) => {
         try {
-          const response = await openai.beta.threads.runs.createAndPoll(assistantId, {
-            messages: [{
-              role: 'user',
-              content: `As ${config.name} (${config.role}), provide your initial analysis and thoughts on this user question:
+          // Create a new thread for this assistant
+          const thread = await openai.beta.threads.create();
+          
+          // Add the user message to the thread
+          await openai.beta.threads.messages.create(thread.id, {
+            role: 'user',
+            content: `As ${config.name} (${config.role}), provide your initial analysis and thoughts on this user question:
 
 "${message}"
 
@@ -103,7 +106,11 @@ Please provide:
 4. Questions you might have for other team members
 
 Keep your response focused and concise (2-3 paragraphs max).`
-            }]
+          });
+
+          // Run the assistant
+          const response = await openai.beta.threads.runs.createAndPoll(thread.id, {
+            assistant_id: assistantId
           });
 
           const messages = await openai.beta.threads.messages.list(response.thread_id);
@@ -143,10 +150,13 @@ Keep your response focused and concise (2-3 paragraphs max).`
     const crossDiscussion = await Promise.all(
       Object.entries(AI_ASSISTANTS).map(async ([assistantId, config]) => {
         try {
-          const response = await openai.beta.threads.runs.createAndPoll(assistantId, {
-            messages: [{
-              role: 'user',
-              content: `As ${config.name}, you've seen the initial thoughts from all team members:
+          // Create a new thread for this assistant
+          const thread = await openai.beta.threads.create();
+          
+          // Add the user message to the thread
+          await openai.beta.threads.messages.create(thread.id, {
+            role: 'user',
+            content: `As ${config.name}, you've seen the initial thoughts from all team members:
 
 ${discussionContext}
 
@@ -158,7 +168,11 @@ Now provide your thoughts on:
 5. How should we proceed with the final recommendation?
 
 Respond as if you're in a team meeting discussing this together.`
-            }]
+          });
+
+          // Run the assistant
+          const response = await openai.beta.threads.runs.createAndPoll(thread.id, {
+            assistant_id: assistantId
           });
 
           const messages = await openai.beta.threads.messages.list(response.thread_id);
