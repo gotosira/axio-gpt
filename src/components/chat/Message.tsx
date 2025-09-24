@@ -7,6 +7,7 @@ import rehypeKatex from "rehype-katex";
 import 'katex/dist/katex.min.css';
 import { Bot, ThumbsUp, ThumbsDown } from "lucide-react";
 import { ThoughtProcess } from "./ThoughtProcess";
+import { useI18n } from "@/components/providers/I18nProvider";
 
 interface MessageProps {
   role: "user" | "assistant";
@@ -43,6 +44,7 @@ export function Message({
   assistantAvatarUrl,
   thoughtProcess
 }: MessageProps) {
+  const { t } = useI18n();
   const currentTime = new Date().toLocaleTimeString('en-US', { 
     hour: '2-digit', 
     minute: '2-digit',
@@ -96,7 +98,7 @@ export function Message({
             {/* Optional inline thinking panel: render if content embeds a block starting with :::thinking */}
             {role === 'assistant' && content.startsWith(':::thinking') && (
               <div className="thinking-panel">
-                <div className="thinking-title">Thinking…</div>
+                <div className="thinking-title">{t('thinking')}</div>
                 <ul className="thinking-list">
                   {content
                     .split('\n')
@@ -167,7 +169,7 @@ export function Message({
                               // Visual feedback
                               const button = event.target as HTMLButtonElement;
                               const originalText = button.textContent;
-                              button.textContent = 'Copied!';
+                              button.textContent = t('copied');
                               button.style.background = 'rgba(34, 197, 94, 0.2)';
                               button.style.color = '#22c55e';
                               
@@ -190,7 +192,7 @@ export function Message({
                           }}
                           title="Copy code"
                         >
-                          Copy
+                          {t('copy')}
                         </button>
                       </pre>
                     ) : (
@@ -284,7 +286,7 @@ export function Message({
                           ? 'text-blue-600 bg-blue-50' 
                           : 'text-gray-400 hover:text-blue-600'
                       }`}
-                      title="ถูกใจ"
+                      title={t('like')}
                     >
                       <ThumbsUp size={16} />
                     </button>
@@ -298,14 +300,14 @@ export function Message({
                           ? 'text-red-600 bg-red-50' 
                           : 'text-gray-400 hover:text-red-600'
                       }`}
-                      title="ไม่ถูกใจ"
+                      title={t('dislike')}
                     >
                       <ThumbsDown size={16} />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); if (onOptions && messageId) onOptions(e, messageId); }}
                       className="p-2 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-                      title="More options"
+                      title={t('moreOptions')}
                     >
                       ···
                     </button>
@@ -317,7 +319,7 @@ export function Message({
           
           <div className={`flex flex-col h-9 items-end justify-end ${role === 'user' ? 'text-right' : ''}`}>
             {role === 'user' && (
-              <div className="message-seen">Seen</div>
+              <div className="message-seen">{t('seen')}</div>
             )}
             <div className="message-time">{currentTime}</div>
           </div>

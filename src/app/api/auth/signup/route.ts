@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { Resend } from "resend";
+import { welcomeEmailHtml } from "@/lib/emailTemplates";
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,6 +53,20 @@ export async function POST(request: NextRequest) {
         createdAt: true,
       },
     });
+
+    // Send welcome email (if configured)
+    try {
+      const apiKey = process.env.RESEND_API_KEY;
+      if (apiKey) {
+        const resend = new Resend(apiKey);
+        await resend.emails.send({
+          from: process.env.EMAIL_FROM || 'AXIO <no-reply@axio.local>',
+          to: email,
+          subject: 'Welcome to AXIO',
+          html: welcomeEmailHtml(name)
+        });
+      }
+    } catch {}
 
     return NextResponse.json(
       { message: "User created successfully", user },

@@ -6,10 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Message } from "@/components/chat/Message";
 import { ContextMenu } from "@/components/chat/ContextMenu";
 import { GoogleDrivePicker, useGoogleDriveAuth } from "@/components/GoogleDrivePicker";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeHighlight from "rehype-highlight";
+import rehypeKatex from "rehype-katex";
+import { useI18n } from "@/components/providers/I18nProvider";
 import { Plus, Search, Mic, User, Settings, Menu, ChevronDown, LogOut, Bot } from "lucide-react";
 import { CustomAuthWrapper } from "@/components/auth/CustomAuthWrapper";
 import { CustomAuthModal } from "@/components/auth/CustomAuthModal";
 import { AssistantWelcome } from "@/components/chat/AssistantWelcome";
+import CanvasMode from "@/components/chat/CanvasMode";
 import { useTheme } from "@/components/ClientThemeProvider";
 import GroupChatResponse from "@/components/chat/GroupChatResponse";
 import GroupChatWelcome from "@/components/chat/GroupChatWelcome";
@@ -50,10 +57,45 @@ interface AttachmentFile {
 }
 
 export default function Home() {
+  const { t, locale, setLocale } = useI18n();
+  // Quick local title generator for fallback
+  const generateLocalTitle = (text: string): string => {
+    try {
+      if (!text) return 'New Chat';
+      const cleaned = text.replace(/[#*_`>\-]/g, ' ').replace(/\s+/g, ' ').trim();
+      const max = 50;
+      let title = cleaned.slice(0, max);
+      if (cleaned.length > max) title = title.replace(/\s+\S*$/, '…');
+      return title.charAt(0).toUpperCase() + title.slice(1);
+    } catch { return 'New Chat'; }
+  };
+
+  const downloadCanvasFiles = (markdown: string, title: string) => {
+    try {
+      const safeTitle = (title || 'ai-response').toLowerCase().replace(/\s+/g, '-');
+      // Markdown
+      const mdBlob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+      const mdUrl = URL.createObjectURL(mdBlob);
+      const a1 = document.createElement('a');
+      a1.href = mdUrl; a1.download = `${safeTitle}.md`; a1.click(); URL.revokeObjectURL(mdUrl);
+      // HTML wrap using same styles as canvas
+      const html = `<!doctype html><html><head><meta charset=\"utf-8\"/><title>${title}</title><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css\"/></head><body style=\"font-family:'IBM Plex Sans Thai',system-ui;-webkit-font-smoothing:antialiased;background:#fff;margin:24px\"><article>${markdown.replace(/</g,'&lt;')}</article></body></html>`;
+      const htmlBlob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const htmlUrl = URL.createObjectURL(htmlBlob);
+      const a2 = document.createElement('a');
+      a2.href = htmlUrl; a2.download = `${safeTitle}.html`; a2.click(); URL.revokeObjectURL(htmlUrl);
+    } catch {}
+  };
   const [user, setUser] = useState<{id: string; name: string; email: string; image?: string} | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const { theme, setTheme } = useTheme();
+
+  // Canvas mode state
+  const [isCanvasOpen, setIsCanvasOpen] = useState(false);
+  const [isCanvasFull, setIsCanvasFull] = useState(false);
+  const [canvasTitle, setCanvasTitle] = useState<string>('Canvas');
+  const [canvasContent, setCanvasContent] = useState<React.ReactNode>(null);
 
   // Check authentication status
   useEffect(() => {
@@ -187,6 +229,11 @@ export default function Home() {
                 ? { ...msg, id: savedUserMessage.id }
                 : msg
             ));
+
+            // Trigger title generation immediately after first user message is saved
+            try {
+              await generateConversationTitle(targetConversationId);
+            } catch {}
           }
         }
 
@@ -306,6 +353,26 @@ export default function Home() {
               newCache[assistantId] = [created, ...(newCache[assistantId] || [])];
               setConversationCache(newCache);
             }
+
+            // Save the user's first message immediately to enable title generation
+            try {
+              const userSaveResponse = await fetch('/api/chat/save-message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  conversationId: targetConversationId,
+                  role: 'user',
+                  content: baseText,
+                }),
+              });
+              if (userSaveResponse.ok) {
+                // Generate title right away
+                try { await generateConversationTitle(targetConversationId); } catch {
+                  // Fallback quick local title
+                  try { await fetch(`/api/conversations/${targetConversationId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title: generateLocalTitle(baseText) })}); } catch {}
+                }
+              }
+            } catch {}
           }
         }
 
@@ -333,6 +400,28 @@ export default function Home() {
 
           setMessages(prev => [...prev, assistantMessage]);
 
+          // Auto-open Canvas when content is long (> ~2 pages heuristic)
+          const contentText = assistantMessage.content || '';
+          // Always show AI answer in canvas
+          setCanvasTitle('AI Response');
+          setCanvasContent(
+            <article className="chatgpt-msg">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[rehypeHighlight, rehypeKatex]}
+              >
+                {contentText}
+              </ReactMarkdown>
+            </article>
+          );
+          // Auto-open only for long answers (roughly > 2 pages of dense text)
+          const approxCharsPerPage = 1500;
+          const pages = Math.ceil((contentText || '').replace(/\s+/g,' ').length / approxCharsPerPage);
+          if (pages >= 2) {
+            setIsCanvasOpen(true);
+          }
+          // No auto-download from canvas
+
           // Save assistant message
           if (targetConversationId) {
             const saveResponse = await fetch('/api/chat/save-message', {
@@ -352,6 +441,13 @@ export default function Home() {
                   ? { ...msg, id: savedMessage.id }
                   : msg
               ));
+
+              // Auto-generate a title for brand new conversations that still have the provisional title
+              if (currentConvId === targetConversationId && (currentConversationTitle === 'New Chat' || currentConversationTitle.startsWith('New chat'))) {
+                try {
+                  await generateConversationTitle(targetConversationId);
+                } catch {}
+              }
             }
           }
         } else {
@@ -647,7 +743,7 @@ export default function Home() {
   const pungpungAvatar = process.env.NEXT_PUBLIC_AVATAR_PUNGPUNG ?? '/avatars/PungPung.png';
   const flowflowAvatar = process.env.NEXT_PUBLIC_AVATAR_FLOWFLOW ?? '/avatars/FlowFlow.jpeg';
   const assistantCatalog = [
-    { id: 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0', code: 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0', name: 'Babao', emoji: '🍼', avatar: babaoAvatar },
+    { id: 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0', code: 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0', name: 'BaoBao', emoji: '🍼', avatar: babaoAvatar },
     { id: 'asst_CO7qtWO5QTfgV0Gyv77XQY8q', code: 'asst_CO7qtWO5QTfgV0Gyv77XQY8q', name: 'DeeDee', emoji: '🦊', avatar: deedeeAvatar },
     { id: 'asst_Pi6FrBRHRpvhwSOIryJvDo3T', code: 'asst_Pi6FrBRHRpvhwSOIryJvDo3T', name: 'PungPung', emoji: '🦉', avatar: pungpungAvatar },
     { id: 'asst_4nCaYlt7AA5Ro4pseDCTbKHO', code: 'asst_4nCaYlt7AA5Ro4pseDCTbKHO', name: 'FlowFlow', emoji: '🐙', avatar: flowflowAvatar },
@@ -1357,17 +1453,9 @@ export default function Home() {
     setContextMenu(null);
   };
 
-  // Assistant options (three-dots) menu
-  const handleAssistantOptions = (event: React.MouseEvent, messageId: string) => {
-    event.preventDefault();
-    const scrollY = window.scrollY || document.documentElement.scrollTop;
-    const scrollX = window.scrollX || document.documentElement.scrollLeft;
-    const x = event.clientX + scrollX;
-    const y = event.clientY + scrollY;
-    setAssistantOptionsMenu({ id: messageId, x, y });
-  };
-
-  const closeAssistantOptions = () => setAssistantOptionsMenu(null);
+  // Assistant options disabled
+  const handleAssistantOptions = () => {};
+  const closeAssistantOptions = () => {};
 
   const prefillFromMessage = (messageId: string, prefix: string) => {
     const m = messages.find(mm => mm.id === messageId);
@@ -1375,31 +1463,11 @@ export default function Home() {
     setInput(`${prefix}\n\n"""${snippet}"""`);
   };
 
-  const handleOptionsTryAgain = (messageId: string) => {
-    handleRegenerate(messageId);
-    closeAssistantOptions();
-  };
-
-  const handleOptionsAddDetails = (messageId: string) => {
-    prefillFromMessage(messageId, 'Add more details to this:');
-    closeAssistantOptions();
-  };
-
-  const handleOptionsMoreConcise = (messageId: string) => {
-    prefillFromMessage(messageId, 'Make this more concise:');
-    closeAssistantOptions();
-  };
-
-  const handleOptionsSearchWeb = (messageId: string) => {
-    prefillFromMessage(messageId, 'Search the web about:');
-    closeAssistantOptions();
-  };
-
-  const handleOptionsSwitchModel = (newModel: string) => {
-    setModel(newModel);
-    try { localStorage.setItem('chat-model', newModel); } catch {}
-    closeAssistantOptions();
-  };
+  const handleOptionsTryAgain = () => {};
+  const handleOptionsAddDetails = () => {};
+  const handleOptionsMoreConcise = () => {};
+  const handleOptionsSearchWeb = () => {};
+  const handleOptionsSwitchModel = () => {};
 
   // Heuristic thinking bullets generator
   const generateThinkingBullets = (query: string): string[] => {
@@ -1807,7 +1875,7 @@ export default function Home() {
               <button 
             type="button"
             className="chat-ref-icon"
-            onClick={() => setShowPlusMenu(!showPlusMenu)}
+          onClick={() => setShowPlusMenu(!showPlusMenu)}
             title="Add options"
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -1818,7 +1886,7 @@ export default function Home() {
           {/* Auto-expanding textarea, clamps to 3 lines with ellipsis overlay */}
           <textarea
             rows={1}
-            placeholder="Ask another question..."
+            placeholder={t('placeholderAsk')}
             className="chat-ref-input"
             autoComplete="off"
             inputMode="text"
@@ -1919,7 +1987,7 @@ export default function Home() {
             className="chat-ref-icon"
             onClick={() => {}}
             disabled={loading}
-            title="Voice input"
+            title={t('voiceInput')}
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M10 2C8.9 2 8 2.9 8 4V10C8 11.1 8.9 12 10 12C11.1 12 12 11.1 12 10V4C12 2.9 11.1 2 10 2Z" fill="currentColor"/>
@@ -1942,8 +2010,8 @@ export default function Home() {
                 const body = e.currentTarget.parentElement; if (body) body.classList.remove('clamped');
               }
             }}
-            title="Send message"
-            aria-label="Send message"
+            title={t('sendMessage')}
+            aria-label={t('sendMessage')}
           >
             {loading ? (
               <div className="loading-spinner"></div>
@@ -1953,6 +2021,28 @@ export default function Home() {
               </svg>
             )}
           </button>
+        </div>
+
+        {/* Canvas toggle button in chat bar */}
+        <div className="mt-2 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            className="h-8 px-3 text-sm rounded-md border hover:bg-accent"
+            onClick={() => setIsCanvasOpen(v => !v)}
+            title={isCanvasOpen ? "Close canvas" : "Open canvas"}
+          >
+            {isCanvasOpen ? 'Close Canvas' : 'Canvas'}
+          </button>
+          {isCanvasOpen && (
+            <button
+              type="button"
+              className="h-8 px-3 text-sm rounded-md border hover:bg-accent"
+              onClick={() => setIsCanvasFull((v) => !v)}
+              title={isCanvasFull ? 'Exit full screen' : 'Full screen'}
+            >
+              {isCanvasFull ? 'Windowed' : 'Full screen'}
+            </button>
+          )}
         </div>
         
         {/* Plus Menu Dropdown */}
@@ -1999,9 +2089,7 @@ export default function Home() {
 
       {/* Footer Disclaimer */}
       <div className="chatbar-footer">
-        <p>
-          AXONS AI may display inaccurate information and does not represent the views of others. Please double-check details before relying on them.
-        </p>
+        <p>{t('disclaimer')}</p>
       </div>
     </div>
   ); };
@@ -2017,8 +2105,16 @@ export default function Home() {
           {/* Header */}
           <div className="p-3 border-b border-light sidebar-header">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded border border-light flex items-center justify-center bg-primary">
-                <span className="font-bold text-sm text-white">A</span>
+              <div className="w-8 h-8 rounded border border-light flex items-center justify-center bg-white overflow-hidden">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path opacity="0.65" d="M14.1283 7.95592C15.0454 6.72855 14.8006 4.9966 13.5814 4.08749C12.3622 3.17838 10.6304 3.43639 9.71323 4.66376L4.04636 12.2473C3.1292 13.4747 3.37403 15.2066 4.59322 16.1157C5.8124 17.0248 7.54425 16.7668 8.46142 15.5395L14.1283 7.95592Z" fill="black"/>
+                  <path d="M15.4406 15.5192C16.3578 16.7465 18.0896 17.0045 19.3088 16.0954C20.528 15.1863 20.7729 13.4544 19.8557 12.227L14.1888 4.64345C13.2717 3.41608 11.5398 3.15808 10.3206 4.06719C9.10144 4.9763 8.85661 6.70825 9.77377 7.93562L15.4406 15.5192Z" fill="black"/>
+                  <path d="M6.31415 20.5358L4.81527 18.2717C4.76883 18.2016 4.70904 18.1415 4.63935 18.0949C4.56966 18.0482 4.49148 18.016 4.40932 18H4.39183H4.35061H4.32188H4.25693H4.22945H4.18699H4.1695C4.08734 18.016 4.00916 18.0482 3.93947 18.0949C3.86978 18.1415 3.80999 18.2016 3.76355 18.2717L2.26467 20.5358C2.21849 20.6052 2.18635 20.6831 2.17009 20.7651C2.15383 20.8471 2.15375 20.9315 2.16987 21.0135C2.186 21.0955 2.218 21.1734 2.26405 21.243C2.31011 21.3125 2.36931 21.3722 2.43829 21.4187C2.50726 21.4652 2.58465 21.4976 2.66605 21.514C2.74744 21.5304 2.83125 21.5304 2.91267 21.5142C2.99409 21.498 3.07154 21.4657 3.1406 21.4194C3.20965 21.373 3.26896 21.3134 3.31513 21.2439L4.29066 19.7748L5.26618 21.2439C5.35961 21.3832 5.50389 21.4797 5.66763 21.5125C5.83137 21.5452 6.00133 21.5115 6.14053 21.4187C6.20951 21.3722 6.26872 21.3125 6.31477 21.243C6.36083 21.1734 6.39284 21.0955 6.40896 21.0135C6.42508 20.9315 6.42501 20.8471 6.40874 20.7651C6.39247 20.6831 6.36033 20.6052 6.31415 20.5358Z" fill="black"/>
+                  <path d="M10.2967 21.1886C10.2855 21.1673 9.77933 20.4361 9.26569 19.6936C9.74344 19.0037 10.1878 18.3616 10.1989 18.3415C10.2224 18.2988 10.2695 18.0568 10.0392 18.0568H9.30777C9.27287 18.0548 9.23807 18.0621 9.2068 18.0779C9.17554 18.0937 9.14891 18.1176 9.12955 18.1471C9.12955 18.1471 8.93275 18.4293 8.6617 18.8219L8.19262 18.1471C8.17339 18.1163 8.14636 18.0914 8.11435 18.0748C8.08234 18.0583 8.04654 18.0507 8.01068 18.053H7.2792C7.05023 18.053 7.09726 18.2951 7.12078 18.3377C7.13068 18.3578 7.57501 19 8.05276 19.6898C7.54407 20.4361 7.03662 21.1623 7.02053 21.1886C6.99701 21.2313 6.94998 21.4733 7.18019 21.4733H7.91166C7.94654 21.4752 7.9813 21.4679 8.01255 21.452C8.04379 21.4362 8.07044 21.4124 8.08989 21.383L8.65675 20.5653L9.22361 21.383C9.24297 21.4125 9.2696 21.4364 9.30087 21.4522C9.33213 21.4681 9.36694 21.4753 9.40183 21.4733H10.1333C10.3623 21.4683 10.3202 21.2263 10.2967 21.1886Z" fill="black"/>
+                  <path d="M12.6285 17.9474C11.5932 17.9474 10.8948 18.679 10.8948 19.7676C10.8948 20.8562 11.5747 21.579 12.6285 21.579C13.6824 21.579 14.3685 20.8511 14.3685 19.7676C14.3685 18.6626 13.6861 17.9474 12.6285 17.9474ZM13.3183 19.7676C13.3183 20.72 12.7994 20.7199 12.6285 20.7199C12.4576 20.7199 11.9486 20.72 11.9486 19.7676C11.9486 19.1205 12.1703 18.8064 12.6285 18.8064C13.0867 18.8064 13.3183 19.1205 13.3183 19.7676Z" fill="black"/>
+                  <path d="M16.5387 18H16.5177C15.6557 18 14.9476 18.5343 14.9476 19.4826V21.408C14.9466 21.4232 14.9487 21.4385 14.9538 21.4529C14.9588 21.4672 14.9668 21.4804 14.9771 21.4914C14.9874 21.5025 14.9998 21.5113 15.0136 21.5172C15.0274 21.5232 15.0423 21.5261 15.0572 21.5259H15.8577C15.8746 21.5271 15.8915 21.5248 15.9074 21.519C15.9234 21.5132 15.938 21.5042 15.9504 21.4924C15.9627 21.4807 15.9726 21.4664 15.9793 21.4506C15.986 21.4348 15.9895 21.4177 15.9894 21.4005V19.6444C15.9894 19.011 16.3515 18.9219 16.5263 18.9219C16.7012 18.9219 17.0632 19.011 17.0632 19.6444V21.4005C17.0632 21.4178 17.0667 21.435 17.0735 21.4509C17.0803 21.4668 17.0902 21.4811 17.1027 21.4929C17.1152 21.5047 17.13 21.5137 17.1461 21.5194C17.1622 21.5251 17.1793 21.5273 17.1962 21.5259H17.9954C18.0104 21.5261 18.0253 21.5232 18.0391 21.5172C18.0529 21.5113 18.0653 21.5025 18.0756 21.4914C18.0859 21.4804 18.0938 21.4672 18.0989 21.4529C18.104 21.4385 18.1061 21.4232 18.105 21.408V19.4814C18.1087 18.5343 17.397 18 16.5387 18Z" fill="black"/>
+                  <path d="M18.6888 20.4659C18.6888 20.4659 18.6512 20.307 18.7916 20.307H19.5436C19.5697 20.3043 19.5959 20.3111 19.6175 20.3261C19.6391 20.3412 19.6547 20.3635 19.6614 20.389C19.7078 20.6046 19.877 20.7572 20.2455 20.7673C20.614 20.7774 20.7744 20.6879 20.7744 20.4798C20.7744 20.4268 20.7556 20.3474 20.5964 20.2679C20.3971 20.1907 20.1899 20.1361 19.9785 20.1052C19.1625 19.9526 18.7489 19.6008 18.7489 19.0724C18.7437 18.8993 18.7852 18.728 18.8691 18.5767C18.953 18.4255 19.076 18.3 19.2252 18.2136C19.2252 18.2136 19.5674 17.9538 20.2655 17.9475C21.0426 17.9399 21.6254 18.3826 21.7119 18.8656C21.7149 18.881 21.7144 18.8968 21.7105 18.912C21.7067 18.9272 21.6995 18.9413 21.6896 18.9534C21.6796 18.9655 21.6671 18.9752 21.653 18.9818C21.6389 18.9884 21.6235 18.9918 21.6079 18.9917H20.7857C20.7641 18.9919 20.7428 18.9872 20.7233 18.9781C20.7038 18.9689 20.6865 18.9555 20.6729 18.9387L20.6603 18.9236C20.6026 18.8649 20.533 18.8194 20.4562 18.7902C20.3794 18.761 20.2973 18.7489 20.2154 18.7546C19.8206 18.7546 19.8206 18.9135 19.8206 18.9665C19.8206 19.0194 19.8469 19.1191 20.0712 19.2023C20.2925 19.2705 20.5183 19.3232 20.7468 19.3599C21.4738 19.5012 21.841 19.8366 21.841 20.3549C21.8496 20.5455 21.8077 20.7348 21.7196 20.9037C21.6315 21.0726 21.5004 21.2148 21.3397 21.3159C21.0175 21.4977 20.6523 21.588 20.2831 21.577C19.9014 21.5942 19.5231 21.4996 19.1939 21.3046C19.0521 21.2121 18.9332 21.0882 18.8463 20.9424C18.7594 20.7966 18.7068 20.6328 18.6925 20.4634C18.6925 20.4634 18.6925 20.452 18.6925 20.4457" fill="black"/>
+                </svg>
               </div>
               <span className="font-semibold text-lg text-primary logo-text">AXONS AI</span>
             </div>
@@ -2032,25 +2128,25 @@ export default function Home() {
                 className="w-full justify-start text-primary hover:bg-hover h-8 text-sm font-medium sidebar-button"
                 onClick={() => setShowAssistantPicker(true)}
                 aria-label="Start new chat"
-                title="New chat"
-                data-tooltip="New chat"
+                title={t('newChat')}
+                data-tooltip={t('newChat')}
                 data-testid="sidebar-new-chat"
                 data-sidebar-item
               >
                 <Plus size={16} className="mr-2" />
-                <span className="has-tooltip">New chat</span>
+                <span className="has-tooltip">{t('newChat')}</span>
               </Button>
               <Button 
                 variant="ghost" 
                 className="w-full justify-start text-primary hover:bg-hover h-8 text-sm font-medium sidebar-button"
-                aria-label="Search chats"
-                title="Search chats"
-                data-tooltip="Search chats"
+                aria-label={t('searchChats')}
+                title={t('searchChats')}
+                data-tooltip={t('searchChats')}
                 data-sidebar-item
                 onClick={()=> setShowSearch(true)}
               >
                 <Search size={16} className="mr-2" />
-                <span className="has-tooltip">Search chats</span>
+                <span className="has-tooltip">{t('searchChats')}</span>
               </Button>
             </div>
 
@@ -2222,8 +2318,8 @@ export default function Home() {
                         className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
-                        placeholder="Rename conversation"
-                        aria-label="Rename conversation"
+                        placeholder={t('renameConversation')}
+                        aria-label={t('renameConversation')}
                       />
                     </form>
                   ) : (
@@ -2239,7 +2335,7 @@ export default function Home() {
                         aria-label="Rename conversation"
                       >
                         <span>✏️</span>
-                        <span>Rename conversation</span>
+                        <span>{t('renameConversation')}</span>
                       </button>
                       <button
                         className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 text-gray-700"
@@ -2248,10 +2344,10 @@ export default function Home() {
                           generateConversationTitle(showConversationMenu.id);
                           setShowConversationMenu(null);
                         }}
-                        aria-label="Generate better title"
+                        aria-label={t('generateBetterTitle')}
                       >
                         <span>✨</span>
-                        <span>Generate better title</span>
+                        <span>{t('generateBetterTitle')}</span>
                       </button>
                       <button
                         className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-red-50 text-red-600"
@@ -2260,10 +2356,10 @@ export default function Home() {
                           deleteConversation(showConversationMenu.id);
                           setShowConversationMenu(null);
                         }}
-                        aria-label="Delete conversation"
+                        aria-label={t('deleteConversation')}
                       >
                         <span>🗑️</span>
-                        <span>Delete conversation</span>
+                        <span>{t('deleteConversation')}</span>
                       </button>
                     </>
                   )}
@@ -2330,7 +2426,7 @@ export default function Home() {
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" aria-modal="true" role="dialog">
             <div className="absolute inset-0" onClick={() => setShowAssistantPicker(false)} />
             <div className="relative z-[101] w-full max-w-4xl h-full max-h-[80vh] flex flex-col items-center justify-center p-6">
-              <div className="assistant-picker-title">Who&apos;s chatting?</div>
+              <div className="assistant-picker-title">{t('whosChatting')}</div>
               <div className="assistant-picker-grid">
                 {assistantCatalog.map((a) => (
                   <button
@@ -2381,7 +2477,7 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              <button className="assistant-cancel" onClick={() => setShowAssistantPicker(false)}>Cancel</button>
+              <button className="assistant-cancel" onClick={() => setShowAssistantPicker(false)}>{t('cancel')}</button>
             </div>
           </div>
         )}
@@ -2795,7 +2891,7 @@ export default function Home() {
               className="text-[#f5fafe] hover:bg-[#074e9f]/20"
               onClick={() => setSidebarOpen(!sidebarOpen)}
             >
-              <Menu size={16} />
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" data-rtl-flip="" className="icon max-md:hidden"><path d="M6.83496 3.99992C6.38353 4.00411 6.01421 4.0122 5.69824 4.03801C5.31232 4.06954 5.03904 4.12266 4.82227 4.20012L4.62207 4.28606C4.18264 4.50996 3.81498 4.85035 3.55859 5.26848L3.45605 5.45207C3.33013 5.69922 3.25006 6.01354 3.20801 6.52824C3.16533 7.05065 3.16504 7.71885 3.16504 8.66301V11.3271C3.16504 12.2712 3.16533 12.9394 3.20801 13.4618C3.25006 13.9766 3.33013 14.2909 3.45605 14.538L3.55859 14.7216C3.81498 15.1397 4.18266 15.4801 4.62207 15.704L4.82227 15.79C5.03904 15.8674 5.31234 15.9205 5.69824 15.9521C6.01398 15.9779 6.383 15.986 6.83398 15.9902L6.83496 3.99992ZM18.165 11.3271C18.165 12.2493 18.1653 12.9811 18.1172 13.5702C18.0745 14.0924 17.9916 14.5472 17.8125 14.9648L17.7295 15.1415C17.394 15.8 16.8834 16.3511 16.2568 16.7353L15.9814 16.8896C15.5157 17.1268 15.0069 17.2285 14.4102 17.2773C13.821 17.3254 13.0893 17.3251 12.167 17.3251H7.83301C6.91071 17.3251 6.17898 17.3254 5.58984 17.2773C5.06757 17.2346 4.61294 17.1508 4.19531 16.9716L4.01855 16.8896C3.36014 16.5541 2.80898 16.0434 2.4248 15.4169L2.27051 15.1415C2.03328 14.6758 1.93158 14.167 1.88281 13.5702C1.83468 12.9811 1.83496 12.2493 1.83496 11.3271V8.66301C1.83496 7.74072 1.83468 7.00898 1.88281 6.41985C1.93157 5.82309 2.03329 5.31432 2.27051 4.84856L2.4248 4.57317C2.80898 3.94666 3.36012 3.436 4.01855 3.10051L4.19531 3.0175C4.61285 2.83843 5.06771 2.75548 5.58984 2.71281C6.17898 2.66468 6.91071 2.66496 7.83301 2.66496H12.167C13.0893 2.66496 13.821 2.66468 14.4102 2.71281C15.0069 2.76157 15.5157 2.86329 15.9814 3.10051L16.2568 3.25481C16.8833 3.63898 17.394 4.19012 17.7295 4.84856L17.8125 5.02531C17.9916 5.44285 18.0745 5.89771 18.1172 6.41985C18.1653 7.00898 18.165 7.74072 18.165 8.66301V11.3271ZM8.16406 15.995H12.167C13.1112 15.995 13.7794 15.9947 14.3018 15.9521C14.8164 15.91 15.1308 15.8299 15.3779 15.704L15.5615 15.6015C15.9797 15.3451 16.32 14.9774 16.5439 14.538L16.6299 14.3378C16.7074 14.121 16.7605 13.8478 16.792 13.4618C16.8347 12.9394 16.835 12.2712 16.835 11.3271V8.66301C16.835 7.71885 16.8347 7.05065 16.792 6.52824C16.7605 6.14232 16.7073 5.86904 16.6299 5.65227L16.5439 5.45207C16.32 5.01264 15.9796 4.64498 15.5615 4.3886L15.3779 4.28606C15.1308 4.16013 14.8165 4.08006 14.3018 4.03801C13.7794 3.99533 13.1112 3.99504 12.167 3.99504H8.16406C8.16407 3.99667 8.16504 3.99829 8.16504 3.99992L8.16406 15.995Z"></path></svg>
             </Button>
             <div className="flex items-center gap-2">
               <span className="text-[#f5fafe] font-semibold text-lg">{currentConversationTitle}</span>
@@ -2824,7 +2920,7 @@ export default function Home() {
                 </div>
               )}
               <div className="bg-[#07a721] px-2 py-1 rounded-full">
-                <span className="text-[#f9fbf9] text-sm font-medium">Online</span>
+                <span className="text-[#f9fbf9] text-sm font-medium">{t('online')}</span>
               </div>
             </div>
           </div>
@@ -2842,14 +2938,20 @@ export default function Home() {
                 <Settings size={16} />
               </Button>
               <div id="settings-theme-menu" className="hidden absolute right-0 mt-2 rounded-lg shadow-lg z-50 min-w-56 plus-menu-dropdown" role="menu" aria-label="Settings">
-                <div className="px-3 py-2 text-sm text-primary">Theme</div>
-                {['light','dark','system'].map((mode)=> (
+                <div className="px-3 py-2 text-sm text-primary">{t('theme')}</div>
+                {(['light','dark','system'] as const).map((mode)=> (
                   <button key={mode}
                     className={`w-full text-left px-3 py-2 text-sm text-primary ${theme === mode ? 'bg-blue-50 text-blue-600' : ''}`}
                     onClick={()=>{setTheme(mode as any);(document.getElementById('settings-theme-menu') as HTMLElement)?.classList.add('hidden');}}
-                  >{mode}</button>
+                  >{t(mode as any)}</button>
                 ))}
-                <div className="px-3 py-2 text-sm text-primary border-t border-[#e4e7ec] mt-1">Preferences</div>
+                {/* Language toggle */}
+                <div className="px-3 py-2 text-sm text-primary border-t border-[#e4e7ec] mt-1">Language</div>
+                <div className="flex items-center gap-2 px-3 py-2">
+                  <button className={`px-2 py-1 rounded border ${locale==='en'?'bg-blue-50 border-blue-300 text-blue-700':'border-gray-200 text-gray-700'}`} onClick={()=>setLocale('en')}>EN</button>
+                  <button className={`px-2 py-1 rounded border ${locale==='th'?'bg-blue-50 border-blue-300 text-blue-700':'border-gray-200 text-gray-700'}`} onClick={()=>setLocale('th')}>TH</button>
+                </div>
+                <div className="px-3 py-2 text-sm text-primary border-t border-[#e4e7ec] mt-1">{t('preferences')}</div>
                 <button
                   className="w-full text-left px-3 py-2 text-sm flex items-center justify-between"
                   onClick={async () => {
@@ -2943,7 +3045,7 @@ Check browser console for detailed logs.
                   className="w-full text-left px-3 py-2 text-sm flex items-center justify-between"
                   onClick={()=> setPrefSound(!prefSound)}
                 >
-                  <span className="text-primary">Sound effects</span>
+                  <span className="text-primary">{t('soundEffects')}</span>
                   <span className={`inline-block w-9 h-5 rounded-full ${prefSound? 'bg-blue-600':'bg-gray-300'}`}
                         role="switch" aria-checked={prefSound ? 'true' : 'false'} aria-label="Toggle sound"/>
                 </button>
@@ -2951,7 +3053,7 @@ Check browser console for detailed logs.
                   className="w-full text-left px-3 py-2 text-sm flex items-center justify-between"
                   onClick={()=> { setPrefNotify(!prefNotify); if(!prefNotify) requestNotificationPermission(); }}
                 >
-                  <span className="text-primary">Notifications</span>
+                  <span className="text-primary">{t('notifications')}</span>
                   <span className={`inline-block w-9 h-5 rounded-full ${prefNotify? 'bg-blue-600':'bg-gray-300'}`}
                         role="switch" aria-checked={prefNotify ? 'true' : 'false'} aria-label="Toggle notifications"/>
                 </button>
@@ -3283,7 +3385,8 @@ Check browser console for detailed logs.
         </div>
       )}
 
-      {assistantOptionsMenu && typeof window !== 'undefined' && (
+      {/* Assistant options menu disabled per request */}
+      {false && assistantOptionsMenu && typeof window !== 'undefined' && (
         <div
           className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-[9999] min-w-64 assistant-options-positioned"
           style={{ top: assistantOptionsMenu.y, left: assistantOptionsMenu.x }}
@@ -3294,22 +3397,22 @@ Check browser console for detailed logs.
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
             onClick={() => handleOptionsTryAgain(assistantOptionsMenu.id)}
             aria-label="Try again"
-          >↻ Try again</button>
+          >↻ {t('tryAgain')}</button>
           <button 
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
             onClick={() => handleOptionsAddDetails(assistantOptionsMenu.id)}
             aria-label="Add details"
-          >⇡ Add details</button>
+          >⇡ {t('addDetails')}</button>
           <button 
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
             onClick={() => handleOptionsMoreConcise(assistantOptionsMenu.id)}
             aria-label="More concise"
-          >≡ More concise</button>
+          >≡ {t('moreConcise')}</button>
           <button 
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
             onClick={() => handleOptionsSearchWeb(assistantOptionsMenu.id)}
             aria-label="Search the web"
-          >🌐 Search the web</button>
+          >🌐 {t('searchTheWeb')}</button>
           <div className="border-t border-gray-200 my-1" />
           <div className="px-3 py-1 text-xs text-gray-500">Switch model</div>
           <div className="flex gap-1 px-2 pb-2">
@@ -3338,6 +3441,21 @@ Check browser console for detailed logs.
           onFileSelect={handleGoogleDriveFiles}
           onClose={() => setShowGoogleDrivePicker(false)}
         />
+      )}
+
+      {/* Canvas Mode Portal */}
+      {typeof window !== 'undefined' && createPortal(
+        <CanvasMode
+          isOpen={isCanvasOpen}
+          onClose={() => setIsCanvasOpen(false)}
+          isFullScreen={isCanvasFull}
+          onToggleFullScreen={() => setIsCanvasFull((v) => !v)}
+          title={canvasTitle}
+          contentMarkdown={typeof canvasContent === 'string' ? canvasContent : undefined}
+        >
+          {canvasContent}
+        </CanvasMode>,
+        document.body
       )}
     </CustomAuthWrapper>
   );

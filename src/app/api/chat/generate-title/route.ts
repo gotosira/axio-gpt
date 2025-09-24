@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the first few messages to generate a title
-    const firstMessages = conversation.messages.slice(0, 4);
+    const firstMessages = conversation.messages.slice(0, 6);
     const conversationText = firstMessages
       .map(m => `${m.role}: ${m.content}`)
       .join('\n');
@@ -50,26 +50,48 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "system",
-          content: "Generate a short, descriptive title (max 50 characters) for this conversation. The title should capture the main topic or question being discussed. Return only the title, no quotes or extra text."
+          content: "Generate a short, descriptive, user-friendly title (max 50 characters) based on the following conversation messages. Use sentence case, remove emojis and markdown, and return only the title (no quotes)."
         },
         {
           role: "user",
           content: conversationText
         }
       ],
-      max_tokens: 20,
+      max_tokens: 32,
       temperature: 0.7,
     });
 
-    const generatedTitle = completion.choices[0]?.message?.content?.trim() || "New Chat";
+    // Post-process: sanitize and prefix with assistant name when available
+    let generatedTitle = completion.choices[0]?.message?.content?.trim() || "New Chat";
+    // Remove wrapping quotes if present
+    if ((generatedTitle.startsWith('"') && generatedTitle.endsWith('"')) || (generatedTitle.startsWith("'") && generatedTitle.endsWith("'"))) {
+      generatedTitle = generatedTitle.slice(1, -1);
+    }
+
+    // Map assistantId to human-friendly name
+    const assistantNameMap: Record<string, string> = {
+      'asst_sS0Sa5rqQFrrwnwkJ9mULGp0': 'BaoBao',
+      'asst_CO7qtWO5QTfgV0Gyv77XQY8q': 'DeeDee',
+      'asst_Pi6FrBRHRpvhwSOIryJvDo3T': 'PungPung',
+      'asst_4nCaYlt7AA5Ro4pseDCTbKHO': 'FlowFlow',
+      'group': 'Group'
+    };
+
+    const assistantPrefix = conversation.assistantId ? (assistantNameMap[conversation.assistantId] || conversation.assistantId) : undefined;
+    let finalTitle = assistantPrefix ? `${assistantPrefix}: ${generatedTitle}` : generatedTitle;
+    // Enforce 50-char max (approx) including prefix
+    if (finalTitle.length > 50) {
+      finalTitle = finalTitle.slice(0, 50).replace(/\s+\S*$/, '').trim();
+      if (!finalTitle.endsWith('…')) finalTitle = `${finalTitle}…`;
+    }
 
     // Update the conversation title
     await prisma.conversation.update({
       where: { id: conversationId },
-      data: { title: generatedTitle },
+      data: { title: finalTitle },
     });
 
-    return NextResponse.json({ title: generatedTitle });
+    return NextResponse.json({ title: finalTitle });
   } catch (error) {
     console.error("Error generating title:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

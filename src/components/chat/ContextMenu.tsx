@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { ThumbsUp, ThumbsDown, Reply, RotateCcw, Trash2, Copy } from "lucide-react";
+import { useI18n } from "@/components/providers/I18nProvider";
 
 interface ContextMenuProps {
   x: number;
@@ -30,6 +31,7 @@ export function ContextMenu({
   onCopy,
   currentFeedback
 }: ContextMenuProps) {
+  const { t } = useI18n();
   const menuRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ left: number; top: number }>({ left: x, top: y });
 
@@ -73,39 +75,39 @@ export function ContextMenu({
   const menuItems = [
     {
       icon: Copy,
-      label: "คัดลอก",
+      label: t('copy'),
       onClick: () => onCopy(messageId),
       show: true
     },
     {
       icon: Reply,
-      label: "ตอบกลับ",
+      label: t('reply') || 'Reply',
       onClick: () => onReply(messageId),
       show: true
     },
     {
       icon: ThumbsUp,
-      label: currentFeedback === "like" ? "ยกเลิกถูกใจ" : "ถูกใจ",
+      label: currentFeedback === "like" ? (t('like') + ' ✓') : t('like'),
       onClick: () => onFeedback(messageId, currentFeedback === "like" ? null : "like"),
       show: true,
       active: currentFeedback === "like"
     },
     {
       icon: ThumbsDown,
-      label: currentFeedback === "dislike" ? "ยกเลิกไม่ถูกใจ" : "ไม่ถูกใจ",
+      label: currentFeedback === "dislike" ? (t('dislike') + ' ✓') : t('dislike'),
       onClick: () => onFeedback(messageId, currentFeedback === "dislike" ? null : "dislike"),
       show: true,
       active: currentFeedback === "dislike"
     },
     {
       icon: RotateCcw,
-      label: "สร้างใหม่",
+      label: t('regenerate') || 'Regenerate',
       onClick: () => onRegenerate(messageId),
       show: messageRole === "assistant"
     },
     {
       icon: Trash2,
-      label: "ลบ",
+      label: t('delete') || 'Delete',
       onClick: () => onDelete(messageId),
       show: true,
       danger: true

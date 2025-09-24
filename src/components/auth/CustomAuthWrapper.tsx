@@ -33,12 +33,25 @@ export function CustomAuthWrapper({ children }: CustomAuthWrapperProps) {
         setShowAuthModal(false);
       } else {
         setUser(null);
-        setShowAuthModal(true);
+        // Redirect unauthenticated users to full-screen login page, unless already there
+        if (typeof window !== 'undefined') {
+          const isOnLogin = window.location.pathname.startsWith('/login');
+          if (!isOnLogin) {
+            window.location.href = '/login';
+          }
+        }
+        setShowAuthModal(false);
       }
     } catch (error) {
       console.error("Auth check failed:", error);
       setUser(null);
-      setShowAuthModal(true);
+      if (typeof window !== 'undefined') {
+        const isOnLogin = window.location.pathname.startsWith('/login');
+        if (!isOnLogin) {
+          window.location.href = '/login';
+        }
+      }
+      setShowAuthModal(false);
     } finally {
       setIsLoading(false);
     }
@@ -64,10 +77,8 @@ export function CustomAuthWrapper({ children }: CustomAuthWrapperProps) {
     return (
       <div className="min-h-screen bg-[#202123] flex items-center justify-center animate-fade-in">
         <div className="text-center animate-scale-in">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-            <span className="text-2xl font-bold text-white">A</span>
-          </div>
-          <p className="text-white text-lg">Loading...</p>
+          <img src="/Happy_Hugging_loading.gif" alt="loading" className="w-56 h-56 md:w-64 md:h-64 mx-auto mb-6 object-contain" />
+          <p className="text-white text-lg">Please be patient, we are loading some goodies!</p>
         </div>
       </div>
     );
@@ -79,12 +90,14 @@ export function CustomAuthWrapper({ children }: CustomAuthWrapperProps) {
       <div className="app-fade-wrapper">
         {children}
       </div>
-      
-      <CustomAuthModal 
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={handleAuthSuccess}
-      />
+      {/* Keep modal available if you want inline auth, but disabled by default to favor /login */}
+      {false && (
+        <CustomAuthModal 
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={handleAuthSuccess}
+        />
+      )}
     </>
   );
 }

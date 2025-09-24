@@ -47,7 +47,7 @@ export default function Home() {
   const pungpungAvatar = process.env.NEXT_PUBLIC_AVATAR_PUNGPUNG ?? '/avatars/pungpung.svg';
   const flowflowAvatar = process.env.NEXT_PUBLIC_AVATAR_FLOWFLOW ?? '/avatars/flowflow.svg';
   const assistantCatalog = [
-    { id: 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0', code: 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0', name: 'Babao', emoji: '🍼', avatar: babaoAvatar },
+    { id: 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0', code: 'asst_sS0Sa5rqQFrrwnwkJ9mULGp0', name: 'BaoBao', emoji: '🍼', avatar: babaoAvatar },
     { id: 'asst_CO7qtWO5QTfgV0Gyv77XQY8q', code: 'asst_CO7qtWO5QTfgV0Gyv77XQY8q', name: 'DeeDee', emoji: '🦊', avatar: deedeeAvatar },
     { id: 'asst_Pi6FrBRHRpvhwSOIryJvDo3T', code: 'asst_Pi6FrBRHRpvhwSOIryJvDo3T', name: 'PungPung', emoji: '🦉', avatar: pungpungAvatar },
     { id: 'asst_4nCaYlt7AA5Ro4pseDCTbKHO', code: 'asst_4nCaYlt7AA5Ro4pseDCTbKHO', name: 'FlowFlow', emoji: '🐙', avatar: flowflowAvatar },

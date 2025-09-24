@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/providers/SessionProvider";
+import { I18nProvider } from "@/components/providers/I18nProvider";
 import { ClientThemeProvider } from "@/components/ClientThemeProvider";
 import { AuthErrorBoundary } from "@/components/AuthErrorBoundary";
 import { SpeedInsights } from "@vercel/speed-insights/react";
@@ -99,7 +100,9 @@ export default function RootLayout({
         <AuthErrorBoundary>
           <SessionProvider>
             <ClientThemeProvider>
-              {children}
+              <I18nProvider>
+                {children}
+              </I18nProvider>
             </ClientThemeProvider>
           </SessionProvider>
         </AuthErrorBoundary>

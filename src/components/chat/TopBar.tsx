@@ -1,10 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Sun, Moon } from "lucide-react";
+import { useI18n } from "@/components/providers/I18nProvider";
 
 const MODELS = ["gpt-5", "gpt-4.1", "gpt-4.1-mini"];
 
 export function TopBar({ onChange }: { onChange: (v: { model: string; instructions: string }) => void }) {
+  const { t } = useI18n();
   const [model, setModel] = useState<string>(MODELS[0]);
   const [instructions, setInstructions] = useState<string>("");
   const [theme, setTheme] = useState<string>(() => localStorage.getItem("theme") || "dark");
@@ -24,7 +26,7 @@ export function TopBar({ onChange }: { onChange: (v: { model: string; instructio
         className="h-9 rounded-md border border-input bg-background px-2 text-sm"
         value={model}
         onChange={(e) => setModel(e.target.value)}
-        aria-label="Model"
+        aria-label={t('model')}
       >
         {MODELS.map((m) => (
           <option key={m} value={m}>{m}</option>
@@ -32,14 +34,14 @@ export function TopBar({ onChange }: { onChange: (v: { model: string; instructio
       </select>
       <input
         className="flex-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
-        placeholder="System prompt (optional)"
+        placeholder={t('systemPromptPlaceholder')}
         value={instructions}
         onChange={(e) => setInstructions(e.target.value)}
       />
       <button
         className="h-9 w-9 inline-flex items-center justify-center rounded-md border"
         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        title="Toggle theme"
+        title={t('toggleTheme')}
       >
         {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
       </button>
