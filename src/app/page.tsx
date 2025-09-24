@@ -3389,7 +3389,7 @@ Check browser console for detailed logs.
       {false && assistantOptionsMenu && typeof window !== 'undefined' && (
         <div
           className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-[9999] min-w-64 assistant-options-positioned"
-          style={{ top: assistantOptionsMenu.y, left: assistantOptionsMenu.x }}
+          style={{ top: assistantOptionsMenu?.y ?? 0, left: assistantOptionsMenu?.x ?? 0 }}
           aria-label="Assistant options"
           onMouseLeave={closeAssistantOptions}
         >
