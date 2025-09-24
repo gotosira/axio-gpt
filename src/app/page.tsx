@@ -283,12 +283,12 @@ export default function Home() {
         // Create or get conversation for regular chat
         let targetConversationId = currentConvId;
         if (!targetConversationId) {
-          let provisionalTitle = `New Chat with ${assistantCatalog.find(a => a.code === targetAssistantId)?.name || 'AI'}`;
+          let provisionalTitle = `New Chat with ${assistantCatalog.find(a => a.code === assistantId)?.name || 'AI'}`;
           
           const createResp = await fetch("/api/conversations", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ title: provisionalTitle, assistantId: targetAssistantId }),
+            body: JSON.stringify({ title: provisionalTitle, assistantId: assistantId }),
           });
           
           if (createResp.ok) {
@@ -301,9 +301,9 @@ export default function Home() {
             setConversations(prev => [created, ...prev]);
             
             // Update cache
-            if (targetAssistantId) {
+            if (assistantId) {
               const newCache = { ...conversationCache };
-              newCache[targetAssistantId] = [created, ...(newCache[targetAssistantId] || [])];
+              newCache[assistantId] = [created, ...(newCache[assistantId] || [])];
               setConversationCache(newCache);
             }
           }
@@ -317,7 +317,7 @@ export default function Home() {
               { role: 'user', content: baseText }
             ],
             conversationId: targetConversationId,
-            assistantId: targetAssistantId,
+            assistantId: assistantId,
           }),
         });
 
