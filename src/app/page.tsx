@@ -651,7 +651,6 @@ export default function Home() {
     { id: 'asst_CO7qtWO5QTfgV0Gyv77XQY8q', code: 'asst_CO7qtWO5QTfgV0Gyv77XQY8q', name: 'DeeDee', emoji: '🦊', avatar: deedeeAvatar },
     { id: 'asst_Pi6FrBRHRpvhwSOIryJvDo3T', code: 'asst_Pi6FrBRHRpvhwSOIryJvDo3T', name: 'PungPung', emoji: '🦉', avatar: pungpungAvatar },
     { id: 'asst_4nCaYlt7AA5Ro4pseDCTbKHO', code: 'asst_4nCaYlt7AA5Ro4pseDCTbKHO', name: 'FlowFlow', emoji: '🐙', avatar: flowflowAvatar },
-    { id: 'group', code: 'group', name: 'Group Chat', emoji: '🎉', avatar: '/avatars/GroupChat.svg' },
   ];
   const assistantById = (id?: string) => {
     const result = assistantCatalog.find(a => a.code === id);
@@ -1158,13 +1157,8 @@ export default function Home() {
         // Reset conversation creation flag when loading existing conversation
         setHasCreatedConversationForInput(false);
         
-        // Check if this was a group chat conversation and restore mode
-        if (conversation.assistantId === 'group' || conversation.title?.includes('Group Chat')) {
-          setGroupChatMode(true);
-          setBetaMode(true);
-          setAssistantId(undefined);
-          setDetectedAssistant('group');
-        } else if (conversation.assistantId === 'beta' || conversation.title?.includes('Beta')) {
+        // Check if this was a beta conversation and restore mode
+        if (conversation.assistantId === 'beta' || conversation.title?.includes('Beta')) {
           setBetaMode(true);
           setGroupChatMode(false);
           setAssistantId(undefined);
@@ -1977,71 +1971,6 @@ export default function Home() {
                 <span className="plus-menu-icon">📎</span>
                 <span>Add photos & files</span>
               </button>
-              <button 
-                className="plus-menu-item"
-                onClick={handleGoogleDriveSelect}
-              >
-                <span className="plus-menu-icon">📁</span>
-                <span>Add from Google Drive</span>
-              </button>
-              <button 
-                className="plus-menu-item"
-                onClick={() => {
-                  setBetaMode(true);
-                  setAssistantId(undefined);
-                  setCurrentConvId(undefined);
-                  setMessages([]);
-                  setCurrentConversationTitle('New Chat (Beta)');
-                  setDetectedAssistant(null);
-                  setGroupChatMode(false);
-                  setShowPlusMenu(false);
-                }}
-              >
-                <span className="plus-menu-icon">🚀</span>
-                <span>New Chat (Beta)</span>
-                <span className="plus-menu-badge">AI ROUTER</span>
-              </button>
-              <button 
-                className="plus-menu-item"
-                onClick={() => {
-                  setGroupChatMode(true);
-                  setBetaMode(true);
-                  setAssistantId(undefined);
-                  setCurrentConvId(undefined);
-                  setMessages([]);
-                  setCurrentConversationTitle('Group Chat');
-                  setDetectedAssistant('group');
-                  setShowPlusMenu(false);
-                }}
-              >
-                <span className="plus-menu-icon">🎉</span>
-                <span>Group Chat</span>
-                <span className="plus-menu-badge">ALL AIs</span>
-              </button>
-              <div className="plus-menu-divider"></div>
-              <button className="plus-menu-item" onClick={() => setShowPlusMenu(false)}>
-                <span className="plus-menu-icon">👆</span>
-                <span>Agent mode</span>
-                <span className="plus-menu-badge">NEW</span>
-              </button>
-              <button className="plus-menu-item" onClick={() => setShowPlusMenu(false)}>
-                <span className="plus-menu-icon">🔭</span>
-                <span>Deep research</span>
-              </button>
-              <button className="plus-menu-item" onClick={() => setShowPlusMenu(false)}>
-                <span className="plus-menu-icon">🖼️</span>
-                <span>Create image</span>
-              </button>
-              <button className="plus-menu-item" onClick={() => setShowPlusMenu(false)}>
-                <span className="plus-menu-icon">🌐</span>
-                <span>Web search</span>
-              </button>
-              <div className="plus-menu-divider"></div>
-              <button className="plus-menu-item" onClick={() => setShowPlusMenu(false)}>
-                <span className="plus-menu-icon">•••</span>
-                <span>More</span>
-                <span className="plus-menu-arrow">{'>'}</span>
-              </button>
             </div>
           </div>
         )}
@@ -2134,43 +2063,24 @@ export default function Home() {
                     key={a.id}
                     className={`w-full flex items-center gap-2 px-2 py-2 rounded text-left assistant-button ${assistantId===a.code? 'selected':''} has-tooltip`}
                     onClick={async () => { 
-                      if (a.code === 'group') {
-                        // Special handling for Group Chat
-                        setAssistantId('group');
-                        setGroupChatMode(true);
-                        setBetaMode(true);
-                        setCurrentConvId(undefined);
-                        setMessages([]);
-                        setCurrentConversationTitle('Group Chat');
-                        setDetectedAssistant('group');
-                        
-                        // Load group chat conversations
-                        if (conversationCache['group']) {
-                          setConversations(conversationCache['group']);
-                        } else {
-                          setConversations([]);
-                        }
-                        await loadConversations('group');
+                      // Regular assistant handling
+                      setAssistantId(a.code);
+                      setCurrentConvId(undefined);
+                      setMessages([]);
+                      setCurrentConversationTitle('New Chat');
+                      setGroupChatMode(false);
+                      setBetaMode(false);
+                      setDetectedAssistant(null);
+
+                      // Load conversations with caching for faster switching
+                      // Show immediate feedback if cached, otherwise show loading
+                      if (conversationCache[a.code]) {
+                        setConversations(conversationCache[a.code]);
                       } else {
-                        // Regular assistant handling
-                      setAssistantId(a.code); 
-                      setCurrentConvId(undefined); 
-                      setMessages([]); 
-                      setCurrentConversationTitle('New Chat'); 
-                        setGroupChatMode(false);
-                        setBetaMode(false);
-                        setDetectedAssistant(null);
-                        
-                        // Load conversations with caching for faster switching
-                        // Show immediate feedback if cached, otherwise show loading
-                        if (conversationCache[a.code]) {
-                          setConversations(conversationCache[a.code]);
-                        } else {
-                          // Clear current conversations while loading
-                          setConversations([]);
-                        }
-                        await loadConversations(a.code);
+                        // Clear current conversations while loading
+                        setConversations([]);
                       }
+                      await loadConversations(a.code);
                     }}
                     data-tooltip={a.name}
                     onMouseEnter={(e)=>{
@@ -2202,11 +2112,6 @@ export default function Home() {
                       <span className="w-6 h-6 rounded-full flex items-center justify-center bg-[#f2f4f7]">{a.emoji}</span>
                     )}
                     <span className="text-sm">{a.name}</span>
-                    {a.code === 'group' && (
-                      <span className="ml-auto px-1.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">
-                        BETA
-                      </span>
-                    )}
                   </button>
                 ))}
               </div>
@@ -2437,44 +2342,25 @@ export default function Home() {
                       playUiSound('select');
                       setShowAssistantPicker(false);
                       
-                      if (a.code === 'group') {
-                        // Special handling for Group Chat
-                        setAssistantId('group');
-                        setGroupChatMode(true);
-                        setBetaMode(true);
-                        setCurrentConvId(undefined);
-                        setMessages([]);
-                        setCurrentConversationTitle('Group Chat');
-                        setDetectedAssistant('group');
-                        
-                        // Load group chat conversations
-                        if (conversationCache['group']) {
-                          setConversations(conversationCache['group']);
-                        } else {
-                          setConversations([]);
-                        }
-                        await loadConversations('group');
-                      } else {
-                        // Regular assistant handling
-                        setAssistantId(a.code);
-                        setGroupChatMode(false);
-                        setBetaMode(false);
-                        setDetectedAssistant(null);
+                      // Regular assistant handling
+                      setAssistantId(a.code);
+                      setGroupChatMode(false);
+                      setBetaMode(false);
+                      setDetectedAssistant(null);
                       const createdTitle = `New Chat with ${a.name}`;
-                        try {
-                          const resp = await fetch('/api/conversations', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ title: createdTitle, assistantId: a.code }),
-                          });
-                          if (resp.ok) {
-                            const conv = await resp.json();
-                            setCurrentConvId(conv.id);
-                            await loadConversations(a.code);
-                            await handleSend(undefined, `Hello, ${a.name}..`, conv.id, a.code);
-                          }
-                        } catch (e) {}
-                      }
+                      try {
+                        const resp = await fetch('/api/conversations', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ title: createdTitle, assistantId: a.code }),
+                        });
+                        if (resp.ok) {
+                          const conv = await resp.json();
+                          setCurrentConvId(conv.id);
+                          await loadConversations(a.code);
+                          await handleSend(undefined, `Hello, ${a.name}..`, conv.id, a.code);
+                        }
+                      } catch (e) {}
                     }}
                   >
                     <div className="assistant-avatar">
@@ -2491,11 +2377,6 @@ export default function Home() {
                     </div>
                     <div className="assistant-name">
                       {a.name}
-                      {a.code === 'group' && (
-                        <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">
-                          BETA
-                        </span>
-                      )}
                     </div>
                   </button>
                 ))}
@@ -3236,12 +3117,6 @@ Check browser console for detailed logs.
                     </div>
                   </div>
                 </div>
-              ) : assistantId && assistantId === 'group' ? (
-                <GroupChatWelcome 
-                  onSuggestionClick={handleSuggestionClick}
-                  recentConversations={conversations.slice(0, 5)}
-                  onConversationClick={loadConversation}
-                />
               ) : assistantId && (
                 <AssistantWelcome 
                   assistantId={assistantId} 
