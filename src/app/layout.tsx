@@ -18,8 +18,60 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_APP_NAME ?? "AXIO-GPT",
-  description: "CustomGPT-powered chat UI",
+  title: "AXIO-GPT - AI-Powered Chat Platform",
+  description: "Collaborate with specialized AI assistants: BaoBao (Content & Translation), DeeDee (UX Research), PungPung (Data Analysis), and FlowFlow (UX/UI Design). Experience intelligent group chat and individual AI interactions.",
+  keywords: ["AI", "chat", "assistant", "collaboration", "translation", "UX", "UI", "design", "data analysis"],
+  authors: [{ name: "AXIO Team" }],
+  creator: "AXIO",
+  publisher: "AXIO",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://axio-gpt.vercel.app'),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: "AXIO-GPT - AI-Powered Chat Platform",
+    description: "Collaborate with specialized AI assistants: BaoBao (Content & Translation), DeeDee (UX Research), PungPung (Data Analysis), and FlowFlow (UX/UI Design). Experience intelligent group chat and individual AI interactions.",
+    url: '/',
+    siteName: 'AXIO-GPT',
+    images: [
+      {
+        url: '/group_photo_AI.png',
+        width: 1200,
+        height: 630,
+        alt: 'AXIO-GPT AI Team - BaoBao, DeeDee, PungPung, and FlowFlow',
+        type: 'image/png',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "AXIO-GPT - AI-Powered Chat Platform",
+    description: "Collaborate with specialized AI assistants: BaoBao (Content & Translation), DeeDee (UX Research), PungPung (Data Analysis), and FlowFlow (UX/UI Design). Experience intelligent group chat and individual AI interactions.",
+    images: ['/group_photo_AI.png'],
+    creator: '@axio',
+    site: '@axio',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+  },
 };
 
 export default function RootLayout({
