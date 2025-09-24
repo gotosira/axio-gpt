@@ -280,6 +280,35 @@ export default function Home() {
     } else {
       // Regular single AI chat
       try {
+        // Create or get conversation for regular chat
+        let targetConversationId = currentConvId;
+        if (!targetConversationId) {
+          let provisionalTitle = `New Chat with ${assistantCatalog.find(a => a.code === targetAssistantId)?.name || 'AI'}`;
+          
+          const createResp = await fetch("/api/conversations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: provisionalTitle, assistantId: targetAssistantId }),
+          });
+          
+          if (createResp.ok) {
+            const created = await createResp.json();
+            targetConversationId = created.id;
+            setCurrentConvId(created.id);
+            setCurrentConversationTitle(provisionalTitle);
+            
+            // Immediately add to sidebar
+            setConversations(prev => [created, ...prev]);
+            
+            // Update cache
+            if (targetAssistantId) {
+              const newCache = { ...conversationCache };
+              newCache[targetAssistantId] = [created, ...(newCache[targetAssistantId] || [])];
+              setConversationCache(newCache);
+            }
+          }
+        }
+
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
