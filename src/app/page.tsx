@@ -3395,22 +3395,22 @@ Check browser console for detailed logs.
         >
           <button 
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
-            onClick={() => handleOptionsTryAgain(assistantOptionsMenu.id)}
+            onClick={() => assistantOptionsMenu ? handleOptionsTryAgain(assistantOptionsMenu.id) : null}
             aria-label="Try again"
           >↻ {t('tryAgain')}</button>
           <button 
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
-            onClick={() => handleOptionsAddDetails(assistantOptionsMenu.id)}
+            onClick={() => assistantOptionsMenu ? handleOptionsAddDetails(assistantOptionsMenu.id) : null}
             aria-label="Add details"
           >⇡ {t('addDetails')}</button>
           <button 
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
-            onClick={() => handleOptionsMoreConcise(assistantOptionsMenu.id)}
+            onClick={() => assistantOptionsMenu ? handleOptionsMoreConcise(assistantOptionsMenu.id) : null}
             aria-label="More concise"
           >≡ {t('moreConcise')}</button>
           <button 
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
-            onClick={() => handleOptionsSearchWeb(assistantOptionsMenu.id)}
+            onClick={() => assistantOptionsMenu ? handleOptionsSearchWeb(assistantOptionsMenu.id) : null}
             aria-label="Search the web"
           >🌐 {t('searchTheWeb')}</button>
           <div className="border-t border-gray-200 my-1" />
