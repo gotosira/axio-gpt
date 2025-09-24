@@ -104,11 +104,11 @@ export async function POST(request: NextRequest) {
     const keyAssistants = [
       ['asst_sS0Sa5rqQFrrwnwkJ9mULGp0', AI_ASSISTANTS['asst_sS0Sa5rqQFrrwnwkJ9mULGp0']], // BaoBao
       ['asst_4nCaYlt7AA5Ro4pseDCTbKHO', AI_ASSISTANTS['asst_4nCaYlt7AA5Ro4pseDCTbKHO']]  // FlowFlow
-    ];
+    ] as const;
     
     for (const [assistantId, config] of keyAssistants) {
       try {
-        console.log(`Getting initial thoughts from ${config.name}...`);
+        console.log(`Getting initial thoughts from ${config?.name || 'Unknown'}...`);
         
         // Create a new thread for this assistant
         const thread = await openai.beta.threads.create();
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
         // Add the user message to the thread
         await openai.beta.threads.messages.create(thread.id, {
           role: 'user',
-          content: `As ${config.name} (${config.role}), provide your analysis on this user question:
+          content: `As ${config?.name || 'AI Assistant'} (${config?.role || 'Assistant'}), provide your analysis on this user question:
 
 "${message}"
 
@@ -140,23 +140,23 @@ Keep your response focused and concise (2-3 paragraphs max).`
         
         const thought = {
           assistantId,
-          name: config.name,
-          avatar: config.avatar,
-          role: config.role,
+          name: config?.name || 'AI Assistant',
+          avatar: config?.avatar || '🤖',
+          role: config?.role || 'Assistant',
           initialThought: latestMessage.content[0]?.type === 'text' ? latestMessage.content[0].text.value : 'No response'
         };
         
         initialThoughts.push(thought);
-        console.log(`✅ ${config.name} completed initial analysis`);
+        console.log(`✅ ${config?.name || 'AI Assistant'} completed initial analysis`);
         
       } catch (error) {
-        console.error(`❌ Error getting initial thoughts from ${config.name}:`, error);
+        console.error(`❌ Error getting initial thoughts from ${config?.name || 'AI Assistant'}:`, error);
         
         initialThoughts.push({
           assistantId,
-          name: config.name,
-          avatar: config.avatar,
-          role: config.role,
+          name: config?.name || 'AI Assistant',
+          avatar: config?.avatar || '🤖',
+          role: config?.role || 'Assistant',
           initialThought: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
         });
       }
