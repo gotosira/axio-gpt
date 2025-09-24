@@ -1,0 +1,50 @@
+name: Deploy to GitHub Pages (Pre-Production)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build for GitHub Pages
+      run: npm run build:gh-pages
+      env:
+        GITHUB_PAGES: true
+        NEXT_PUBLIC_APP_URL: https://gotosira.github.io/axio-gpt
+        # Add your environment variables here for pre-production
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        
+    - name: Deploy to GitHub Pages
+      if: github.ref == 'refs/heads/main'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./out
+        cname: # Optional: add your custom domain here
+        
+    - name: Deploy to GitHub Pages (PR Preview)
+      if: github.event_name == 'pull_request'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./out
+        destination_dir: preview/pr-${{ github.event.number }}
