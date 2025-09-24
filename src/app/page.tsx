@@ -278,13 +278,69 @@ export default function Home() {
         }]);
       }
     } else {
-      // Regular single AI chat (existing logic would go here)
-      // For now, just show a placeholder
-      setMessages(prev => [...prev, {
-        id: `temp-assistant-${Date.now()}`,
-        role: 'assistant',
-        content: 'Single AI chat functionality will be implemented here.',
-      }]);
+      // Regular single AI chat
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              { role: 'user', content: baseText }
+            ],
+            conversationId: targetConversationId,
+            assistantId: targetAssistantId,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Create assistant message
+          const assistantMessage: ChatMessage = {
+            id: `temp-assistant-${Date.now()}`,
+            role: 'assistant',
+            content: data.response || data.message || 'No response received.',
+          };
+
+          setMessages(prev => [...prev, assistantMessage]);
+
+          // Save assistant message
+          if (targetConversationId) {
+            const saveResponse = await fetch('/api/chat/save-message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                conversationId: targetConversationId,
+                role: 'assistant',
+                content: assistantMessage.content,
+              }),
+            });
+
+            if (saveResponse.ok) {
+              const savedMessage = await saveResponse.json();
+              setMessages(prev => prev.map(msg => 
+                msg.id === assistantMessage.id 
+                  ? { ...msg, id: savedMessage.id }
+                  : msg
+              ));
+            }
+          }
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          setMessages(prev => [...prev, {
+            id: `temp-assistant-${Date.now()}`,
+            role: 'assistant',
+            content: `Error: ${errorData.error || 'Failed to get AI response'}`,
+          }]);
+        }
+      } catch (error) {
+        console.error('Chat error:', error);
+        setMessages(prev => [...prev, {
+          id: `temp-assistant-${Date.now()}`,
+          role: 'assistant',
+          content: `Error: ${error instanceof Error ? error.message : 'Failed to process request'}`,
+        }]);
+      }
     }
 
     setLoading(false);

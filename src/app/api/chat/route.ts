@@ -1,18 +1,24 @@
 import { NextRequest } from "next/server";
 import OpenAI from "openai";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/db";
-import { getToken } from "next-auth/jwt";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = (await getServerSession(authOptions as unknown as Record<string, unknown>)) as any;
-    if (!session?.user?.id) {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
     }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as {
+      userId: string;
+    };
 
     const body = await req.json();
     const { messages, previousResponseId, model: modelFromClient, instructions: instructionsFromClient, assistantId: assistantIdFromClient, conversationId, attachments } = body as {
@@ -261,7 +267,7 @@ export async function POST(req: NextRequest) {
       const newConversation = await prisma.conversation.create({
         data: {
           title: processedMessages.find(m => m.role === "user")?.content?.slice(0, 50) || "New Chat",
-          userId: session.user.id,
+          userId: decoded.userId,
           assistantId: assistantIdFromClient,
         },
       });
