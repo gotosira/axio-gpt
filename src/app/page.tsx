@@ -366,10 +366,10 @@ export default function Home() {
                 }),
               });
               if (userSaveResponse.ok) {
-                // Generate title right away
-                try { await generateConversationTitle(targetConversationId); } catch {
+                // Generate title right away (guard undefined)
+                try { if (targetConversationId) { await generateConversationTitle(targetConversationId); } } catch {
                   // Fallback quick local title
-                  try { await fetch(`/api/conversations/${targetConversationId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title: generateLocalTitle(baseText) })}); } catch {}
+                  try { if (targetConversationId) { await fetch(`/api/conversations/${targetConversationId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title: generateLocalTitle(baseText) })}); } } catch {}
                 }
               }
             } catch {}
