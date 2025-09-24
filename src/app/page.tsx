@@ -3395,22 +3395,22 @@ Check browser console for detailed logs.
         >
           <button 
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
-            onClick={() => assistantOptionsMenu ? handleOptionsTryAgain(assistantOptionsMenu.id) : null}
+            onClick={() => { if (typeof handleOptionsTryAgain === 'function') handleOptionsTryAgain(); }}
             aria-label="Try again"
           >↻ {t('tryAgain')}</button>
           <button 
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
-            onClick={() => assistantOptionsMenu ? handleOptionsAddDetails(assistantOptionsMenu.id) : null}
+            onClick={() => { if (typeof handleOptionsAddDetails === 'function') handleOptionsAddDetails(); }}
             aria-label="Add details"
           >⇡ {t('addDetails')}</button>
           <button 
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
-            onClick={() => assistantOptionsMenu ? handleOptionsMoreConcise(assistantOptionsMenu.id) : null}
+            onClick={() => { if (typeof handleOptionsMoreConcise === 'function') handleOptionsMoreConcise(); }}
             aria-label="More concise"
           >≡ {t('moreConcise')}</button>
           <button 
             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
-            onClick={() => assistantOptionsMenu ? handleOptionsSearchWeb(assistantOptionsMenu.id) : null}
+            onClick={() => { if (typeof handleOptionsSearchWeb === 'function') handleOptionsSearchWeb(); }}
             aria-label="Search the web"
           >🌐 {t('searchTheWeb')}</button>
           <div className="border-t border-gray-200 my-1" />
