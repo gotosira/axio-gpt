@@ -13,6 +13,7 @@ import { AssistantWelcome } from "@/components/chat/AssistantWelcome";
 import { useTheme } from "@/components/ClientThemeProvider";
 import GroupChatResponse from "@/components/chat/GroupChatResponse";
 import GroupChatWelcome from "@/components/chat/GroupChatWelcome";
+import ContextUsage from "@/components/chat/ContextUsage";
 
 type ChatMessage = { 
   id: string; 
@@ -258,10 +259,22 @@ export default function Home() {
 
       } catch (error) {
         console.error('Group chat error:', error);
+        
+        let errorMessage = 'Failed to process group chat request';
+        if (error instanceof Error) {
+          if (error.message.includes('JSON')) {
+            errorMessage = 'Group chat is taking too long. Please try again with a shorter question.';
+          } else if (error.message.includes('504') || error.message.includes('timeout')) {
+            errorMessage = 'Group chat request timed out. Please try again.';
+          } else {
+            errorMessage = error.message;
+          }
+        }
+        
         setMessages(prev => [...prev, {
           id: `temp-assistant-${Date.now()}`,
           role: 'assistant',
-          content: `Error: ${error instanceof Error ? error.message : 'Failed to process group chat'}`,
+          content: `Error: ${errorMessage}`,
         }]);
       }
     } else {
@@ -1960,6 +1973,16 @@ export default function Home() {
         aria-label="Upload attachments"
       />
 
+      {/* Context Usage Display */}
+      {messages.length > 0 && (
+        <div className="context-usage-container">
+          <ContextUsage 
+            messages={messages} 
+            assistantId={assistantId}
+          />
+        </div>
+      )}
+
       {/* Footer Disclaimer */}
       <div className="chatbar-footer">
         <p>
@@ -2094,6 +2117,11 @@ export default function Home() {
                       <span className="w-6 h-6 rounded-full flex items-center justify-center bg-[#f2f4f7]">{a.emoji}</span>
                     )}
                     <span className="text-sm">{a.name}</span>
+                    {a.code === 'group' && (
+                      <span className="ml-auto px-1.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">
+                        BETA
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -2376,7 +2404,14 @@ export default function Home() {
                         onLoad={() => console.log('Avatar loaded successfully:', a.name, a.avatar)}
                       />
                     </div>
-                    <div className="assistant-name">{a.name}</div>
+                    <div className="assistant-name">
+                      {a.name}
+                      {a.code === 'group' && (
+                        <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">
+                          BETA
+                        </span>
+                      )}
+                    </div>
                   </button>
                 ))}
               </div>

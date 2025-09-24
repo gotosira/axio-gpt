@@ -97,17 +97,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Message and conversationId are required" }, { status: 400 });
     }
 
-    // Step 1: Sequential Initial Analysis - Each AI provides their initial thoughts one by one
-    console.log('Starting sequential group chat analysis...');
+    // Step 1: Simplified Initial Analysis - Only get thoughts from 2 key AIs to reduce time
+    console.log('Starting optimized group chat analysis...');
     
     const initialThoughts = [];
-    const assistantEntries = Object.entries(AI_ASSISTANTS);
-    let progressStep = 1;
-    const totalSteps = assistantEntries.length * 2 + 1; // Initial thoughts + discussions + synthesis
+    const keyAssistants = [
+      ['asst_sS0Sa5rqQFrrwnwkJ9mULGp0', AI_ASSISTANTS['asst_sS0Sa5rqQFrrwnwkJ9mULGp0']], // BaoBao
+      ['asst_4nCaYlt7AA5Ro4pseDCTbKHO', AI_ASSISTANTS['asst_4nCaYlt7AA5Ro4pseDCTbKHO']]  // FlowFlow
+    ];
     
-    for (const [assistantId, config] of assistantEntries) {
+    for (const [assistantId, config] of keyAssistants) {
       try {
-        console.log(`[${progressStep}/${totalSteps}] Getting initial thoughts from ${config.name}...`);
+        console.log(`Getting initial thoughts from ${config.name}...`);
         
         // Create a new thread for this assistant
         const thread = await openai.beta.threads.create();
@@ -115,22 +116,23 @@ export async function POST(request: NextRequest) {
         // Add the user message to the thread
         await openai.beta.threads.messages.create(thread.id, {
           role: 'user',
-          content: `As ${config.name} (${config.role}), provide your initial analysis and thoughts on this user question:
+          content: `As ${config.name} (${config.role}), provide your analysis on this user question:
 
 "${message}"
 
 Please provide:
 1. Your specific perspective on this question
-2. Key insights from your area of expertise
+2. Key insights from your area of expertise  
 3. Initial recommendations or suggestions
-4. Questions you might have for other team members
 
 Keep your response focused and concise (2-3 paragraphs max).`
         });
 
-        // Run the assistant
+        // Run the assistant with timeout
         const response = await openai.beta.threads.runs.createAndPoll(thread.id, {
           assistant_id: assistantId
+        }, {
+          timeout: 20000 // 20 second timeout per AI
         });
 
         const messages = await openai.beta.threads.messages.list(response.thread_id);
@@ -145,16 +147,10 @@ Keep your response focused and concise (2-3 paragraphs max).`
         };
         
         initialThoughts.push(thought);
-        console.log(`✅ [${progressStep}/${totalSteps}] ${config.name} completed initial analysis`);
-        progressStep++;
+        console.log(`✅ ${config.name} completed initial analysis`);
         
       } catch (error) {
         console.error(`❌ Error getting initial thoughts from ${config.name}:`, error);
-        console.error('Error details:', {
-          assistantId,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined
-        });
         
         initialThoughts.push({
           assistantId,
@@ -166,82 +162,16 @@ Keep your response focused and concise (2-3 paragraphs max).`
       }
     }
 
-    // Step 2: Sequential Cross-Discussion - AIs discuss each other's thoughts one by one
-    console.log('Starting sequential cross-discussion phase...');
-    
-    // Create discussion context
-    const discussionContext = initialThoughts.map(thought => 
-      `**${thought.name} (${thought.role})**: ${thought.initialThought}`
-    ).join('\n\n');
-
-    const crossDiscussion = [];
-    
-    for (const [assistantId, config] of assistantEntries) {
-      try {
-        console.log(`[${progressStep}/${totalSteps}] Getting discussion input from ${config.name}...`);
-        
-        // Create a new thread for this assistant
-        const thread = await openai.beta.threads.create();
-        
-        // Add the user message to the thread
-        await openai.beta.threads.messages.create(thread.id, {
-          role: 'user',
-          content: `As ${config.name}, you've seen the initial thoughts from all team members:
-
-${discussionContext}
-
-Now provide your thoughts on:
-1. What insights do you agree with from other team members?
-2. What additional perspectives can you add?
-3. How can your expertise complement what others have suggested?
-4. Any concerns or different viewpoints?
-5. How should we proceed with the final recommendation?
-
-Respond as if you're in a team meeting discussing this together.`
-        });
-
-        // Run the assistant
-        const response = await openai.beta.threads.runs.createAndPoll(thread.id, {
-          assistant_id: assistantId
-        });
-
-        const messages = await openai.beta.threads.messages.list(response.thread_id);
-        const latestMessage = messages.data[0];
-        
-        const discussion = {
-          assistantId,
-          name: config.name,
-          avatar: config.avatar,
-          discussion: latestMessage.content[0]?.type === 'text' ? latestMessage.content[0].text.value : 'No response'
-        };
-        
-        crossDiscussion.push(discussion);
-        console.log(`✅ [${progressStep}/${totalSteps}] ${config.name} completed discussion input`);
-        progressStep++;
-        
-      } catch (error) {
-        console.error(`❌ Error in cross-discussion from ${config.name}:`, error);
-        crossDiscussion.push({
-          assistantId,
-          name: config.name,
-          avatar: config.avatar,
-          discussion: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
-        });
-      }
-    }
+    // Step 2: Skip cross-discussion to save time - go straight to synthesis
+    console.log('Skipping cross-discussion phase to optimize performance...');
 
     // Step 3: Final Synthesis - Create a comprehensive final answer
-    console.log(`[${progressStep}/${totalSteps}] Creating final synthesis...`);
+    console.log('Creating final synthesis...');
     
     const synthesisContext = `
-**INITIAL THOUGHTS:**
+**AI TEAM ANALYSIS:**
 ${initialThoughts.map(thought => 
   `**${thought.name} (${thought.role})**: ${thought.initialThought}`
-).join('\n\n')}
-
-**TEAM DISCUSSION:**
-${crossDiscussion.map(discussion => 
-  `**${discussion.name}**: ${discussion.discussion}`
 ).join('\n\n')}
 `;
 
@@ -276,7 +206,7 @@ ${synthesisContext}`
     });
 
     const finalAnswer = finalSynthesis.choices[0]?.message?.content || 'No final answer generated';
-    console.log(`✅ [${progressStep}/${totalSteps}] Final answer synthesized successfully`);
+    console.log('✅ Final answer synthesized successfully');
     console.log('Final answer length:', finalAnswer.length, 'characters');
 
     // Return the complete collaborative response
@@ -285,7 +215,7 @@ ${synthesisContext}`
       collaborativeResponse: {
         userQuestion: message,
         initialThoughts,
-        crossDiscussion,
+        crossDiscussion: [], // Empty since we skipped this phase
         finalAnswer,
         timestamp: new Date().toISOString()
       }

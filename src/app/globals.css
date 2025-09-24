@@ -1917,3 +1917,46 @@ button:hover {
 
 .hover\:bg-hover:hover { background-color: var(--bg-hover); }
 .hover\:bg-selected:hover { background-color: var(--bg-selected); }
+
+/* Context Usage Display */
+.context-usage-container {
+  padding: 8px 16px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+}
+
+.context-usage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.context-usage .progress-circle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, var(--bg-primary) 0deg, var(--bg-primary) calc(var(--progress) * 3.6deg), #e5e7eb calc(var(--progress) * 3.6deg));
+  position: relative;
+}
+
+.context-usage .progress-circle::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+}
+
+/* Dark mode support for context usage */
+@media (prefers-color-scheme: dark) {
+  .context-usage-container {
+    background: var(--bg-sidebar);
+    border-color: var(--border-medium);
+  }
+  
+  .context-usage .progress-circle {
+    background: conic-gradient(from 0deg, var(--bg-primary) 0deg, var(--bg-primary) calc(var(--progress) * 3.6deg), #374151 calc(var(--progress) * 3.6deg));
+  }
+}
