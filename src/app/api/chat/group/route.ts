@@ -97,19 +97,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Message and conversationId are required" }, { status: 400 });
     }
 
-    // Step 1: Initial Analysis - Each AI provides their initial thoughts
-    console.log('Starting collaborative group chat analysis...');
+    // Step 1: Sequential Initial Analysis - Each AI provides their initial thoughts one by one
+    console.log('Starting sequential group chat analysis...');
     
-    const initialThoughts = await Promise.all(
-      Object.entries(AI_ASSISTANTS).map(async ([assistantId, config]) => {
-        try {
-          // Create a new thread for this assistant
-          const thread = await openai.beta.threads.create();
-          
-          // Add the user message to the thread
-          await openai.beta.threads.messages.create(thread.id, {
-            role: 'user',
-            content: `As ${config.name} (${config.role}), provide your initial analysis and thoughts on this user question:
+    const initialThoughts = [];
+    const assistantEntries = Object.entries(AI_ASSISTANTS);
+    let progressStep = 1;
+    const totalSteps = assistantEntries.length * 2 + 1; // Initial thoughts + discussions + synthesis
+    
+    for (const [assistantId, config] of assistantEntries) {
+      try {
+        console.log(`[${progressStep}/${totalSteps}] Getting initial thoughts from ${config.name}...`);
+        
+        // Create a new thread for this assistant
+        const thread = await openai.beta.threads.create();
+        
+        // Add the user message to the thread
+        await openai.beta.threads.messages.create(thread.id, {
+          role: 'user',
+          content: `As ${config.name} (${config.role}), provide your initial analysis and thoughts on this user question:
 
 "${message}"
 
@@ -120,62 +126,67 @@ Please provide:
 4. Questions you might have for other team members
 
 Keep your response focused and concise (2-3 paragraphs max).`
-          });
+        });
 
-          // Run the assistant
-          const response = await openai.beta.threads.runs.createAndPoll(thread.id, {
-            assistant_id: assistantId
-          });
+        // Run the assistant
+        const response = await openai.beta.threads.runs.createAndPoll(thread.id, {
+          assistant_id: assistantId
+        });
 
-          const messages = await openai.beta.threads.messages.list(response.thread_id);
-          const latestMessage = messages.data[0];
-          
-          return {
-            assistantId,
-            name: config.name,
-            avatar: config.avatar,
-            role: config.role,
-            initialThought: latestMessage.content[0]?.type === 'text' ? latestMessage.content[0].text.value : 'No response'
-          };
-        } catch (error) {
-          console.error(`Error getting initial thoughts from ${config.name}:`, error);
-          console.error('Error details:', {
-            assistantId,
-            error: error instanceof Error ? error.message : 'Unknown error',
-            stack: error instanceof Error ? error.stack : undefined
-          });
-          return {
-            assistantId,
-            name: config.name,
-            avatar: config.avatar,
-            role: config.role,
-            initialThought: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
-          };
-        }
-      })
-    );
+        const messages = await openai.beta.threads.messages.list(response.thread_id);
+        const latestMessage = messages.data[0];
+        
+        const thought = {
+          assistantId,
+          name: config.name,
+          avatar: config.avatar,
+          role: config.role,
+          initialThought: latestMessage.content[0]?.type === 'text' ? latestMessage.content[0].text.value : 'No response'
+        };
+        
+        initialThoughts.push(thought);
+        console.log(`✅ [${progressStep}/${totalSteps}] ${config.name} completed initial analysis`);
+        progressStep++;
+        
+      } catch (error) {
+        console.error(`❌ Error getting initial thoughts from ${config.name}:`, error);
+        console.error('Error details:', {
+          assistantId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        });
+        
+        initialThoughts.push({
+          assistantId,
+          name: config.name,
+          avatar: config.avatar,
+          role: config.role,
+          initialThought: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        });
+      }
+    }
 
-    // Step 2: Cross-Discussion - AIs discuss each other's thoughts
-    console.log('Starting cross-discussion phase...');
-    
-    const discussionRounds = [];
-    const assistantNames = Object.values(AI_ASSISTANTS).map(a => a.name);
+    // Step 2: Sequential Cross-Discussion - AIs discuss each other's thoughts one by one
+    console.log('Starting sequential cross-discussion phase...');
     
     // Create discussion context
     const discussionContext = initialThoughts.map(thought => 
       `**${thought.name} (${thought.role})**: ${thought.initialThought}`
     ).join('\n\n');
 
-    const crossDiscussion = await Promise.all(
-      Object.entries(AI_ASSISTANTS).map(async ([assistantId, config]) => {
-        try {
-          // Create a new thread for this assistant
-          const thread = await openai.beta.threads.create();
-          
-          // Add the user message to the thread
-          await openai.beta.threads.messages.create(thread.id, {
-            role: 'user',
-            content: `As ${config.name}, you've seen the initial thoughts from all team members:
+    const crossDiscussion = [];
+    
+    for (const [assistantId, config] of assistantEntries) {
+      try {
+        console.log(`[${progressStep}/${totalSteps}] Getting discussion input from ${config.name}...`);
+        
+        // Create a new thread for this assistant
+        const thread = await openai.beta.threads.create();
+        
+        // Add the user message to the thread
+        await openai.beta.threads.messages.create(thread.id, {
+          role: 'user',
+          content: `As ${config.name}, you've seen the initial thoughts from all team members:
 
 ${discussionContext}
 
@@ -187,36 +198,40 @@ Now provide your thoughts on:
 5. How should we proceed with the final recommendation?
 
 Respond as if you're in a team meeting discussing this together.`
-          });
+        });
 
-          // Run the assistant
-          const response = await openai.beta.threads.runs.createAndPoll(thread.id, {
-            assistant_id: assistantId
-          });
+        // Run the assistant
+        const response = await openai.beta.threads.runs.createAndPoll(thread.id, {
+          assistant_id: assistantId
+        });
 
-          const messages = await openai.beta.threads.messages.list(response.thread_id);
-          const latestMessage = messages.data[0];
-          
-          return {
-            assistantId,
-            name: config.name,
-            avatar: config.avatar,
-            discussion: latestMessage.content[0]?.type === 'text' ? latestMessage.content[0].text.value : 'No response'
-          };
-        } catch (error) {
-          console.error(`Error in cross-discussion from ${config.name}:`, error);
-          return {
-            assistantId,
-            name: config.name,
-            avatar: config.avatar,
-            discussion: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
-          };
-        }
-      })
-    );
+        const messages = await openai.beta.threads.messages.list(response.thread_id);
+        const latestMessage = messages.data[0];
+        
+        const discussion = {
+          assistantId,
+          name: config.name,
+          avatar: config.avatar,
+          discussion: latestMessage.content[0]?.type === 'text' ? latestMessage.content[0].text.value : 'No response'
+        };
+        
+        crossDiscussion.push(discussion);
+        console.log(`✅ [${progressStep}/${totalSteps}] ${config.name} completed discussion input`);
+        progressStep++;
+        
+      } catch (error) {
+        console.error(`❌ Error in cross-discussion from ${config.name}:`, error);
+        crossDiscussion.push({
+          assistantId,
+          name: config.name,
+          avatar: config.avatar,
+          discussion: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        });
+      }
+    }
 
     // Step 3: Final Synthesis - Create a comprehensive final answer
-    console.log('Creating final synthesis...');
+    console.log(`[${progressStep}/${totalSteps}] Creating final synthesis...`);
     
     const synthesisContext = `
 **INITIAL THOUGHTS:**
@@ -261,6 +276,8 @@ ${synthesisContext}`
     });
 
     const finalAnswer = finalSynthesis.choices[0]?.message?.content || 'No final answer generated';
+    console.log(`✅ [${progressStep}/${totalSteps}] Final answer synthesized successfully`);
+    console.log('Final answer length:', finalAnswer.length, 'characters');
 
     // Return the complete collaborative response
     return NextResponse.json({
