@@ -3417,7 +3417,7 @@ Check browser console for detailed logs.
           <div className="px-3 py-1 text-xs text-gray-500">Switch model</div>
           <div className="flex gap-1 px-2 pb-2">
             {['gpt-5','gpt-4o-mini','gpt-4.1-mini'].map(m => (
-              <button key={m} className={`px-2 py-1 text-xs rounded border ${model===m? 'bg-blue-50 border-blue-300 text-blue-700':'border-gray-200 text-gray-700'}`} onClick={() => handleOptionsSwitchModel(m)}>{m}</button>
+              <button key={m} className={`px-2 py-1 text-xs rounded border ${model===m? 'bg-blue-50 border-blue-300 text-blue-700':'border-gray-200 text-gray-700'}`} onClick={() => { if (typeof handleOptionsSwitchModel === 'function') handleOptionsSwitchModel(); }}>{m}</button>
             ))}
     </div>
         </div>
