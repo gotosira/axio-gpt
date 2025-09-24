@@ -735,7 +735,6 @@ button:hover {
 
 .chat-message-bubble {
   max-width: 100%;
-  width: 100%;
   padding: 12px 16px;
   border-radius: 12px;
   font-size: 14px;
