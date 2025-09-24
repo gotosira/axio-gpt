@@ -6,7 +6,7 @@ interface GroupChatWelcomeProps {
     id: string;
     title: string;
     updatedAt: string;
-    messageCount: number;
+    messages?: any[];
   }>;
   onConversationClick: (conversationId: string) => void;
 }
@@ -105,7 +105,7 @@ const GroupChatWelcome: React.FC<GroupChatWelcomeProps> = ({
                         {conversation.title}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {conversation.messageCount} messages • {new Date(conversation.updatedAt).toLocaleDateString()}
+                        {conversation.messages?.length || 0} messages • {new Date(conversation.updatedAt).toLocaleDateString()}
                       </div>
                     </div>
                     <div className="ml-2 text-xs text-gray-400">
