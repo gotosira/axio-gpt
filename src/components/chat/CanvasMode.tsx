@@ -44,14 +44,14 @@ export default function CanvasMode({
       {/* Panel */}
       <div
         ref={panelRef}
-        className={`absolute top-0 right-0 h-full bg-white border-l pointer-events-auto transition-[transform,width] duration-300 shadow-2xl overflow-hidden flex flex-col ${
+        className={`absolute top-0 right-0 h-full bg-white border-l pointer-events-auto transition-[transform,width] duration-300 shadow-2xl overflow-hidden flex flex-col canvas-mode ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         } ${isFullScreen ? 'w-full' : 'w-[70%]'} max-w-[100vw]`}
         role="dialog"
         aria-modal="true"
         aria-label={title || 'Canvas mode'}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/40">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/40 canvas-header">
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-sm font-medium truncate">{title || 'Canvas'}</span>
           </div>
@@ -177,7 +177,7 @@ export default function CanvasMode({
         </div>
 
         {/* Formatting toolbar */}
-        <div className="flex items-center gap-2 px-3 py-2 border-b bg-white">
+        <div className="flex items-center gap-2 px-3 py-2 border-b bg-white canvas-toolbar">
           <button className="h-8 px-2 text-sm rounded-md border" title="Bold" onClick={() => { docRef.current?.focus(); document.execCommand('bold'); }}>B</button>
           <button className="h-8 px-2 text-sm rounded-md border" title="Italic" onClick={() => { docRef.current?.focus(); document.execCommand('italic'); }}><i>I</i></button>
           <button className="h-8 px-2 text-sm rounded-md border" title="Heading 1" onClick={() => { docRef.current?.focus(); document.execCommand('formatBlock', false, 'h1'); }}>H1</button>
