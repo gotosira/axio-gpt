@@ -309,7 +309,17 @@
 /* Extra mobile/responsive hardening */
 @media (max-width: 768px) {
   .app-container { flex-direction: column; }
-  .sidebar { position: static; width: 100%; height: auto; z-index: 20; }
+  .sidebar { 
+    position: fixed; 
+    width: 100%; 
+    height: 100vh; 
+    z-index: 20; 
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  .sidebar.sidebar-slide-in {
+    transform: translateX(0);
+  }
   .main-content { margin-left: 0; min-width: 0; }
   .chat-header, .chat-messages, .chat-input-area { width: 100%; min-width: 0; }
   .chat-message { padding: 12px 12px; }
@@ -576,13 +586,13 @@ button:hover {
   border-right: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
-  height: 100%;      /* requested override */
+  height: 100vh;     /* Use viewport height for consistency */
   position: fixed;   /* requested override */
   left: 0;
   top: 0;
-  bottom: 0;         /* ensure it extends to bottom even with mobile UI */
-  z-index: 100; /* ensure on top and visually full-height */
+  z-index: 100;       /* ensure on top and visually full-height */
   transition: transform 0.3s ease, width 0.3s ease;
+  overflow-y: auto;  /* Allow scrolling if content exceeds height */
 }
 
 .sidebar.closed {
@@ -2162,11 +2172,38 @@ button:hover {
 .sidebar-slide-out {
   transform: translateX(-100%) !important;
   transition: transform 300ms ease-in-out !important;
+  visibility: hidden !important;
 }
 
 .sidebar-slide-in {
   transform: translateX(0) !important;
   transition: transform 300ms ease-in-out !important;
+  visibility: visible !important;
+}
+
+/* Ensure sidebar is always visible when not sliding out */
+.sidebar:not(.sidebar-slide-out) {
+  visibility: visible !important;
+  transform: translateX(0) !important;
+}
+
+/* Fix for collapsed sidebar state */
+.sidebar.closed:not(.sidebar-slide-out) {
+  transform: none !important;
+  visibility: visible !important;
+  width: 72px !important;
+}
+
+/* Override slide animations when sidebar should be visible */
+.sidebar.sidebar-slide-in,
+.sidebar:not(.sidebar-slide-out) {
+  transform: translateX(0) !important;
+  visibility: visible !important;
+}
+
+/* Ensure proper z-index for sidebar visibility */
+.sidebar {
+  z-index: 100 !important;
 }
 
 /* Dark mode suggestions */
