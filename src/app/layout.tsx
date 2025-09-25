@@ -90,7 +90,6 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.jpg" type="image/jpeg" />
         <link rel="shortcut icon" href="/favicon.jpg" type="image/jpeg" />
-        <link rel="apple-touch-icon" href="/favicon.jpg" />
         <script src="https://apis.google.com/js/api.js" async defer></script>
         <script src="https://accounts.google.com/gsi/client" async defer></script>
       </head>

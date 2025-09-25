@@ -6,6 +6,7 @@
   position: fixed; 
   inset: 0; 
   background: rgba(0, 0, 0, 0.6); 
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px); 
   z-index: 200; 
 }
@@ -314,7 +315,7 @@
   .chat-message { padding: 12px 12px; }
   .chat-message-bubble { word-break: break-word; overflow-wrap: anywhere; }
   img, video, table { max-width: 100%; height: auto; }
-  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { display: block; overflow-x: auto; /* -webkit-overflow-scrolling: touch; */ /* Deprecated */ }
   .assistant-picker-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .conversation-menu, .assistant-options-positioned, #settings-theme-menu { z-index: 99999; }
 }
@@ -336,8 +337,8 @@
 /* Minimal, auto-hiding scrollbars */
 /* Progressive enhancement scrollbars (non-blocking if unsupported) */
 * {
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: rgba(0,0,0,0.25) transparent; /* Firefox */
+  /* scrollbar-width: thin; */ /* Limited browser support */
+  /* scrollbar-color: rgba(0,0,0,0.25) transparent; */ /* Limited browser support */
 }
 
 /* Webkit */
@@ -356,7 +357,7 @@
 /* Hide scrollbars until user interacts (macOS-like overlay behavior) */
 .scroll-container {
   overflow: auto;
-  scrollbar-gutter: stable both-edges; /* Safari will ignore */
+  /* scrollbar-gutter: stable both-edges; */ /* Limited browser support */
 }
 .scroll-container:hover::-webkit-scrollbar-thumb,
 .scroll-container:active::-webkit-scrollbar-thumb,
@@ -1619,8 +1620,8 @@ button:hover {
   height: 100vh !important;
   z-index: 9999 !important;
   background: rgba(0, 0, 0, 0.7) !important;
-  backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(12px) !important;
   pointer-events: auto !important;
 }
 

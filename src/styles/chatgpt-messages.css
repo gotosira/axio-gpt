@@ -299,7 +299,7 @@ html[data-theme="dark"] mark {
 
 /* Responsive tables */
 @media (max-width: 640px) {
-  .chatgpt-msg table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .chatgpt-msg table { display: block; overflow-x: auto; /* -webkit-overflow-scrolling: touch; */ /* Deprecated */ }
 }
 
 /* =========================
