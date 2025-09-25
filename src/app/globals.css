@@ -641,7 +641,12 @@ button:hover {
 
 /* When sidebar is collapsed (icon-only mode) */
 .main-content.sidebar-closed { 
-  margin-left: 72px; 
+  margin-left: 0; 
+}
+
+/* When sidebar is collapsed but still visible (desktop collapsed state) */
+.main-content.sidebar-collapsed {
+  margin-left: 72px;
 }
 
 /* When sidebar is completely hidden (slide-out) */
