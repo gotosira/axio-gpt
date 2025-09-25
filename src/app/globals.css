@@ -631,15 +631,34 @@ button:hover {
 /* Main content */
 .main-content {
   flex: 1;
-  margin-left: 256px; /* account for fixed sidebar */
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  transition: margin-left 0.3s ease;
   background: var(--bg-primary);
+  margin-left: 256px; /* Default: full sidebar width */
+  transition: margin-left 0.3s ease;
 }
 
-.main-content.sidebar-closed { margin-left: 72px; }
+/* When sidebar is collapsed (icon-only mode) */
+.main-content.sidebar-closed { 
+  margin-left: 72px; 
+}
+
+/* When sidebar is completely hidden (slide-out) */
+.main-content.sidebar-slide-out {
+  margin-left: 0;
+}
+
+/* Mobile: no margin when sidebar is hidden */
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+  }
+  
+  .main-content.sidebar-closed {
+    margin-left: 0;
+  }
+}
 
 /* Icon-only mode helpers */
 .sidebar.closed .sidebar-button span,
