@@ -1608,6 +1608,36 @@ button:hover {
   padding: 8px clamp(8px, 4vw, 24px);
 }
 
+/* Assistant Picker Modal - Full Screen Overlay */
+.assistant-picker-modal {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  background: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  pointer-events: auto !important;
+}
+
+.assistant-picker-modal .assistant-picker-content {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) translateY(-20px) !important;
+  width: 100% !important;
+  max-width: 900px !important;
+  padding: 40px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
 @media (min-width: 768px) {
   .assistant-picker-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
