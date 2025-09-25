@@ -596,8 +596,9 @@ button:hover {
 }
 
 .sidebar.closed {
-  transform: none; /* keep it visible */
-  width: 72px;     /* icon-only width */
+  width: 72px;
+  transform: none;
+  visibility: visible;
 }
 
 /* Header and footer stickiness */
