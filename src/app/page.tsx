@@ -2098,7 +2098,7 @@ export default function Home() {
     <CustomAuthWrapper>
       <div className={`min-h-screen flex app-container`}>
       {/* Sidebar */}
-      <div className={`sidebar ${sidebarOpen ? '' : 'closed'} transition-transform duration-300 border-r cascade cascade-1`}>
+      <div className={`sidebar ${sidebarOpen ? 'sidebar-slide-in' : 'sidebar-slide-out'} transition-transform duration-300 border-r cascade cascade-1`}>
         {/* Flytip portal element */}
         <div id="sidebar-flytip" className="sidebar-flytip hidden"></div>
         <div className="h-full flex flex-col">
@@ -2126,7 +2126,10 @@ export default function Home() {
               <Button 
                 variant="ghost" 
                 className="w-full justify-start text-primary hover:bg-hover h-8 text-sm font-medium sidebar-button"
-                onClick={() => setShowAssistantPicker(true)}
+                onClick={() => {
+                  setShowAssistantPicker(true);
+                  setSidebarOpen(false);
+                }}
                 aria-label="Start new chat"
                 title={t('newChat')}
                 data-tooltip={t('newChat')}
@@ -2424,7 +2427,10 @@ export default function Home() {
         {/* Netflix-style Assistant Picker Modal */}
         {showAssistantPicker && (
           <div className="assistant-picker-modal" aria-modal="true" role="dialog">
-            <div className="absolute inset-0" onClick={() => setShowAssistantPicker(false)} />
+            <div className="absolute inset-0" onClick={() => {
+              setShowAssistantPicker(false);
+              setSidebarOpen(true);
+            }} />
             <div className="assistant-picker-content">
               <div className="assistant-picker-title">{t('whosChatting')}</div>
               <div className="assistant-picker-grid">
@@ -2437,6 +2443,7 @@ export default function Home() {
                     onClick={async () => {
                       playUiSound('select');
                       setShowAssistantPicker(false);
+                      setSidebarOpen(true);
                       
                       // Regular assistant handling
                       setAssistantId(a.code);
@@ -2477,7 +2484,10 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              <button className="assistant-cancel" onClick={() => setShowAssistantPicker(false)}>{t('cancel')}</button>
+              <button className="assistant-cancel" onClick={() => {
+                setShowAssistantPicker(false);
+                setSidebarOpen(true);
+              }}>{t('cancel')}</button>
             </div>
           </div>
         )}
