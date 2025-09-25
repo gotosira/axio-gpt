@@ -596,9 +596,9 @@ button:hover {
 }
 
 .sidebar.closed {
+  visibility: visible !important;
   width: 72px;
-  transform: none;
-  visibility: visible;
+  transform: none !important;
 }
 
 /* Header and footer stickiness */
